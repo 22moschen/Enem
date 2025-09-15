@@ -36,7 +36,7 @@ A camada de consumo é voltada para o desenvolvimento de três vertentes: Visual
 
 Será preciso desenvolver gráficos, dashboards, tabelas, documentos, de acordo com o escopo do projeto e capacidade de visualização.
 
-### Governacy and security
+### Governacy and security (GaS)
 
 É a camada responsável por fazer o gerenciamento de níveis de acesso da análise de dados. Responsável também pela documentação e catalogação dos dados presentes no projeto.
 

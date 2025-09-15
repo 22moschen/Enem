@@ -40,4 +40,12 @@ Será preciso desenvolver gráficos, dashboards, tabelas, documentos, de acordo 
 
 É a camada responsável por fazer o gerenciamento de níveis de acesso da análise de dados. Responsável também pela documentação e catalogação dos dados presentes no projeto.
 
+## Ferramentas de desenvolvimento:
+
+O projeto será desenvolvido utilizando Python. a partir da versão 3.13.7.
+
+Para a camada ETL para fazer a extração, tranformação e carregar para a próxia camada, será utilizada a bibliteca pandas.
+
+Na camada Consumption será utilizado o framework Streamlite. 
+
 

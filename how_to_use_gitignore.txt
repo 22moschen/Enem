@@ -1,0 +1,91 @@
+Para ignorar uma pasta inteira usando o .gitignore, basta adicionar o caminho da pasta seguido de uma barra (/).
+
+Exemplo:
+
+Se você tiver uma pasta chamada logs no seu repositório e quiser que o Git ignore tudo dentro dela:
+
+logs/
+
+Observações importantes:
+
+O / no final indica que é uma pasta.
+
+Se a pasta já foi adicionada ao Git (rastreamento feito com git add), você precisa removê-la do controle de versão antes:
+
+git rm -r --cached logs
+
+
+Depois, faça o commit da alteração:
+
+git commit -m "Remover logs do versionamento"
+
+
+Se a pasta estiver em um caminho específico, basta colocar esse caminho.
+Exemplo: ignorar uma pasta temp dentro de src:
+
+src/temp/
+
+
+
+
+
+
+
+Às vezes você quer ignorar os arquivos de uma pasta, mas manter a pasta vazia no repositório (por exemplo, uploads/ ou logs/ que precisam existir, mas não com arquivos).
+
+Como fazer:
+
+No seu .gitignore, coloque:
+
+pasta/*
+
+
+Isso vai ignorar tudo dentro da pasta.
+
+Mas, para manter a pasta, crie dentro dela um arquivo especial chamado .gitkeep (esse nome é só uma convenção, poderia ser qualquer arquivo vazio).
+
+Ajuste o .gitignore para permitir esse arquivo:
+
+pasta/*
+!pasta/.gitkeep
+
+Resultado:
+
+Todos os arquivos da pasta/ serão ignorados.
+
+Apenas o .gitkeep será versionado.
+
+Assim, o Git mantém a pasta no repositório, mas não os arquivos temporários dela.
+
+
+
+
+
+
+
+
+Você pode criar um arquivo .gitignore de forma bem simples, é só criar um arquivo de texto chamado .gitignore na raiz do seu repositório (ou em qualquer subpasta, se quiser regras específicas para aquela pasta).
+
+Passo a passo para criar:
+No Windows (PowerShell ou CMD):
+echo.>.gitignore
+
+No Linux ou Mac:
+touch .gitignore
+
+
+Isso cria o arquivo vazio. Depois, você edita com qualquer editor de texto (VS Code, Notepad, Vim, etc.) e adiciona as regras.
+
+Exemplo básico de .gitignore
+# Ignorar a pasta logs
+logs/
+
+# Ignorar a pasta node_modules (muito comum em projetos Node.js)
+node_modules/
+
+# Ignorar arquivos temporários
+*.tmp
+*.log
+
+# Ignorar arquivos de configuração local
+.env

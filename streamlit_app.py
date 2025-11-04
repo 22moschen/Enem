@@ -16,14 +16,31 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Função para verificar e criar banco se necessário
+def ensure_database():
+    db_path = 'DWStorage/enem_analysis.db'
+    if not os.path.exists(db_path):
+        st.warning("Banco de dados não encontrado. Tentando executar ETL...")
+        csv_path = "DataSources/microdados_enem_2024.csv"
+        if os.path.exists(csv_path):
+            with st.spinner("Executando ETL automaticamente..."):
+                create_database_from_csv(csv_path)
+            st.success("ETL executado com sucesso!")
+            return True
+        else:
+            st.error(f"Arquivo CSV não encontrado: {csv_path}. Faça upload ou verifique o caminho.")
+            return False
+    return True
+
 # Função para carregar dados do banco
 @st.cache_data
 def load_data():
-    if not os.path.exists('enem_analysis.db'):
-        st.error("Banco de dados 'enem_analysis.db' não encontrado. Execute o ETL primeiro.")
-        return None, None, None, None, None
+    db_path = 'DWStorage/enem_analysis.db'
+    if not os.path.exists(db_path):
+        if not ensure_database():
+            return None, None, None, None, None
 
-    conn = sqlite3.connect('enem_analysis.db')
+    conn = sqlite3.connect(db_path)
     try:
         df_desempenho = pd.read_sql_query("SELECT * FROM desempenho_grupo", conn)
         df_correlacao = pd.read_sql_query("SELECT * FROM correlacao_notas", conn)
@@ -145,20 +162,25 @@ with tab2:
     col1, col2 = st.columns(2)
 
     with col1:
+        # Exemplo de scatter plot (dados fictícios para demonstração)
+        import numpy as np
+        x = np.random.randn(100)
+        y = np.random.randn(100)
         fig_scatter1 = px.scatter(
-            x=df_correlacao.loc['NU_NOTA_CN', 'NU_NOTA_MT'],
-            y=df_correlacao.loc['NU_NOTA_CH', 'NU_NOTA_LC'],
-            title='Correlação CN-MT vs CH-LC',
-            labels={'x': 'CN-MT', 'y': 'CH-LC'}
+            x=x, y=y,
+            title='Exemplo: Correlação entre Áreas',
+            labels={'x': 'Nota Área 1', 'y': 'Nota Área 2'}
         )
         st.plotly_chart(fig_scatter1)
 
     with col2:
+        # Outro exemplo
+        x2 = np.random.randn(100)
+        y2 = np.random.randn(100)
         fig_scatter2 = px.scatter(
-            x=df_correlacao.loc['NU_NOTA_CN', 'NU_NOTA_REDACAO'],
-            y=df_correlacao.loc['NU_NOTA_MT', 'NU_NOTA_REDACAO'],
-            title='Correlação com Redação',
-            labels={'x': 'CN-Redação', 'y': 'MT-Redação'}
+            x=x2, y=y2,
+            title='Exemplo: Distribuição de Notas',
+            labels={'x': 'Nota CN', 'y': 'Nota Redação'}
         )
         st.plotly_chart(fig_scatter2)
 

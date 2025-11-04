@@ -1,0 +1,31 @@
+# Governança e Segurança - Pesquisa e Documentação
+
+## Objetivos da Camada GaS
+- Gerenciar níveis de acesso aos dados
+- Documentar processos e dados
+- Garantir conformidade com leis de dados (LGPD)
+- Catalogar metadados
+
+## Documentação dos Dados
+
+### Tabelas Principais
+- desempenho_grupo: Médias por grupo de análise (urbano/rural)
+- correlacao_notas: Correlações entre áreas do conhecimento
+- ausencias_grupo: Contagem de ausências por grupo e área
+- descritivas_notas: Estatísticas descritivas das notas
+- desempenho_dependencia: Médias por dependência administrativa (opcional)
+
+### Metadados
+- Fonte: Microdados ENEM 2024 (INEP)
+- Filtros: Apenas Altamira-PA, estudantes presentes
+- Atualização: Dados de 2024
+
+## Níveis de Acesso
+- Público: Dashboards e relatórios agregados
+- Restrito: Dados individuais (apenas pesquisadores autorizados)
+- Admin: Acesso total para manutenção
+
+## Pesquisa em Andamento
+- Análise de fatores socioeconômicos
+- Comparação com anos anteriores
+- Modelos preditivos de desempenho

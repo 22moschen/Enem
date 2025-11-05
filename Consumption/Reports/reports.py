@@ -1,43 +1,55 @@
 import pandas as pd
 import sqlite3
-from fpdf import FPDF
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 import os
-
-class PDF(FPDF):
-    def header(self):
-        self.set_font('Arial', 'B', 12)
-        self.cell(0, 10, 'Relatório ENEM Altamira 2024', 0, 1, 'C')
-
-    def footer(self):
-        self.set_y(-15)
-        self.set_font('Arial', 'I', 8)
-        self.cell(0, 10, f'Página {self.page_no()}', 0, 0, 'C')
 
 def generate_report(db_path='enem_analysis.db', output_path='relatorio_enem.pdf'):
     """
-    Gera um relatório PDF com análises principais.
+    Gera um relatório PDF com análises principais usando ReportLab.
     """
     conn = sqlite3.connect(db_path)
 
-    pdf = PDF()
-    pdf.add_page()
-    pdf.set_font('Arial', '', 10)
+    c = canvas.Canvas(output_path, pagesize=letter)
+    width, height = letter
+
+    # Título
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(100, height - 50, "Relatório ENEM Altamira 2024")
+
+    y_position = height - 80
 
     # Desempenho por grupo
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(50, y_position, "Desempenho por Grupo de Análise")
+    y_position -= 20
+
     df_desempenho = pd.read_sql_query("SELECT * FROM desempenho_grupo", conn)
-    pdf.cell(0, 10, 'Desempenho por Grupo de Análise', 0, 1)
+    c.setFont("Helvetica", 10)
     for _, row in df_desempenho.iterrows():
-        pdf.cell(0, 10, f"{row['GRUPO_ANALISE']}: Média Geral {row['Média Geral']:.2f}", 0, 1)
+        c.drawString(50, y_position, f"{row['GRUPO_ANALISE']}: Média Geral {row['Média Geral']:.2f}")
+        y_position -= 15
+        if y_position < 50:
+            c.showPage()
+            y_position = height - 50
 
     # Correlações
-    df_corr = pd.read_sql_query("SELECT * FROM correlacao_notas", conn)
-    pdf.add_page()
-    pdf.cell(0, 10, 'Matriz de Correlação', 0, 1)
-    # Simples representação textual
-    corr_text = df_corr.to_string()
-    pdf.multi_cell(0, 5, corr_text)
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(50, y_position, "Matriz de Correlação")
+    y_position -= 20
 
-    pdf.output(output_path)
+    df_corr = pd.read_sql_query("SELECT * FROM correlacao_notas", conn)
+    c.setFont("Helvetica", 8)
+    corr_text = df_corr.to_string()
+    lines = corr_text.split('\n')
+    for line in lines:
+        c.drawString(50, y_position, line)
+        y_position -= 12
+        if y_position < 50:
+            c.showPage()
+            y_position = height - 50
+
+    c.save()
     conn.close()
     print(f"Relatório gerado: {output_path}")
 

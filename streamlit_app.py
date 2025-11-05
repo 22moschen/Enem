@@ -1,4 +1,3 @@
-import streamlit as st
 import pandas as pd
 import plotly.express as px
 import sqlite3
@@ -126,7 +125,7 @@ with tab1:
         text='Média Geral'
     )
     fig_bar.update_traces(texttemplate='%{text:.2f}', textposition='outside')
-    st.plotly_chart(fig_bar, use_container_width=True)
+    st.plotly_chart(fig_bar, width='stretch')
 
     # Gráfico de radar para todas as áreas
     fig_radar = px.line_polar(
@@ -137,11 +136,11 @@ with tab1:
         line_close=True,
         title='Perfil de Desempenho por Área'
     )
-    st.plotly_chart(fig_radar, use_container_width=True)
+    st.plotly_chart(fig_radar, width='stretch')
 
     # Tabela detalhada
     st.subheader("Tabela Detalhada")
-    st.dataframe(df_plot.style.highlight_max(axis=0), use_container_width=True)
+    st.dataframe(df_plot.style.highlight_max(axis=0), width='stretch')
 
     # Insights
     st.info("💡 **Insight**: Grupos urbanos tendem a ter médias mais altas, possivelmente devido a melhor infraestrutura educacional.")
@@ -156,7 +155,7 @@ with tab2:
         title='Matriz de Correlação entre Notas',
         color_continuous_scale='RdBu_r'
     )
-    st.plotly_chart(fig_heatmap, use_container_width=True)
+    st.plotly_chart(fig_heatmap, width='stretch')
 
     # Scatter plots para correlações principais
     col1, col2 = st.columns(2)
@@ -197,9 +196,9 @@ with tab3:
         y=['mean', '50%', 'min', 'max'],
         title='Distribuição das Notas por Área'
     )
-    st.plotly_chart(fig_box, use_container_width=True)
+    st.plotly_chart(fig_box, width='stretch')
 
-    st.dataframe(df_descritivas.style.format("{:.2f}"), use_container_width=True)
+    st.dataframe(df_descritivas.style.format("{:.2f}"), width='stretch')
 
     # Ausências
     st.subheader("Ausências por Grupo e Área")
@@ -212,7 +211,7 @@ with tab3:
         title='Ausências por Grupo e Área',
         barmode='group'
     )
-    st.plotly_chart(fig_ausencias, use_container_width=True)
+    st.plotly_chart(fig_ausencias, width='stretch')
 
     st.info("💡 **Insight**: Áreas com mais ausências podem indicar dificuldades específicas ou falta de preparação em determinadas matérias.")
 
@@ -226,7 +225,7 @@ with tab3:
             title='Média Geral por Tipo de Escola',
             color='DEPENDENCIA_ADM'
         )
-        st.plotly_chart(fig_dep, use_container_width=True)
+        st.plotly_chart(fig_dep, width='stretch')
 
 with tab4:
     st.header("Relatórios e Exportação")

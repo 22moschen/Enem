@@ -1,1 +1,34 @@
+# Virtual environments
+venv/
+venv_fresh/
+venv_new/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Database files
+*.db
+
+# Data sources (if needed to ignore large data)
 DataSources/microdados_enem_2024/
+
+# Reports and generated files
+Consumption/Reports/*.pdf
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.swp

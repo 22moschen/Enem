@@ -92,7 +92,7 @@ def transform_enem_data(df):
 
 if __name__ == "__main__":
     # Exemplo de uso
-    from extract import extract_enem_data
+    from ..Extract.extract import extract_enem_data
     df = extract_enem_data("../../DataSources/microdados_enem_2024.csv")
     transformed = transform_enem_data(df)
     print(transformed['desempenho_grupo'])

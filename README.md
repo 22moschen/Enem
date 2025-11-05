@@ -208,16 +208,20 @@ Para adicionar novos dados do ENEM:
    docker-compose down
    ```
 
-2. Coloque os arquivos brutos (CSV, Excel) na pasta `DataSources/`
+2. Baixe os microdados do ENEM do site oficial do INEP:
+   - Acesse: https://www.gov.br/inep/pt-br/acesso-a-informacao/dados-abertos/microdados/enem
+   - Baixe o arquivo CSV do ano desejado (exemplo: "Microdados do Enem 2023")
 
-3. Reinicie o container:
+3. Coloque o arquivo baixado na pasta `DataSources/` mantendo o nome original do arquivo (exemplo: `Microdados do Enem 2023.csv`)
+
+4. Reinicie o container:
    ```bash
    docker-compose up --build
    ```
 
-O sistema irá automaticamente detectar, processar e integrar os novos dados ao dashboard.
+O sistema irá automaticamente detectar o novo arquivo CSV, processar os dados através do pipeline ETL (filtrando apenas registros de Altamira-PA) e integrar os novos dados ao dashboard.
 
-**Nota**: Para dados de anos anteriores, coloque os arquivos na pasta `DataSources/` seguindo o padrão dos microdados ENEM. O sistema identificará automaticamente o tipo de arquivo e aplicará as transformações necessárias.
+**Nota**: O sistema foi desenvolvido especificamente para processar os microdados do ENEM no formato padrão fornecido pelo INEP. Certifique-se de baixar apenas os arquivos CSV dos microdados completos, não os arquivos reduzidos ou de outras categorias.
 
 ### Acessando o Dashboard
 

@@ -150,8 +150,9 @@ O projeto segue uma arquitetura em camadas bem definida, inspirada em data wareh
 
 ## Pré-requisitos
 
+- **Docker e Docker Compose** (recomendado para execução fácil)
 - **Sistema Operacional**: Windows 10/11, Linux ou macOS
-- **Python**: Versão 3.8 ou superior (recomendado 3.13.7+)
+- **Python**: Versão 3.8 ou superior (recomendado 3.13.7+) - apenas para execução local
 - **Git**: Para controle de versão e clonagem do repositório
 - **Navegador Web**: Chrome, Firefox ou Edge (para acessar o dashboard)
 - **Espaço em Disco**: Pelo menos 500MB livres para dados e dependências
@@ -166,9 +167,68 @@ git clone https://github.com/Felipe-Gabriel-Menezes-Lacerda/ENEMAnalytics.git
 cd ENEMAnalytics
 ```
 
-## Criar Ambiente Virtual
+## Execução com Docker (Recomendado)
 
-### Windows
+### Pré-requisitos para Docker
+- Docker Desktop instalado e rodando
+- Docker Compose instalado
+
+### Comandos para Executar com Docker
+
+1. **Executar o projeto completo**:
+   ```bash
+   docker-compose up --build
+   ```
+   **O que faz**: Constrói a imagem Docker, instala todas as dependências, executa o ETL automatizado e inicia o dashboard Streamlit.
+
+2. **Executar em background**:
+   ```bash
+   docker-compose up -d --build
+   ```
+   **O que faz**: Executa o projeto em background sem bloquear o terminal.
+
+3. **Parar o projeto**:
+   ```bash
+   docker-compose down
+   ```
+   **O que faz**: Para todos os containers e remove os recursos temporários.
+
+4. **Ver logs**:
+   ```bash
+   docker-compose logs -f
+   ```
+   **O que faz**: Mostra os logs em tempo real do container.
+
+### Adicionando Novos Dados com Docker
+
+Para adicionar novos dados do ENEM:
+
+1. Pare o container (se estiver rodando):
+   ```bash
+   docker-compose down
+   ```
+
+2. Coloque os arquivos brutos (CSV, Excel) na pasta `DataSources/`
+
+3. Reinicie o container:
+   ```bash
+   docker-compose up --build
+   ```
+
+O sistema irá automaticamente detectar, processar e integrar os novos dados ao dashboard.
+
+**Nota**: Para dados de anos anteriores, coloque os arquivos na pasta `DataSources/` seguindo o padrão dos microdados ENEM. O sistema identificará automaticamente o tipo de arquivo e aplicará as transformações necessárias.
+
+### Acessando o Dashboard
+
+Após executar `docker-compose up --build`, acesse:
+- **Dashboard Principal**: http://localhost:8501
+
+## Execução Local (Alternativa)
+
+### Criar Ambiente Virtual
+
+#### Windows
 ```bash
 # Criar ambiente virtual
 python -m venv venv
@@ -177,7 +237,7 @@ python -m venv venv
 venv\Scripts\activate.bat
 ```
 
-### Linux/macOS
+#### Linux/macOS
 ```bash
 # Criar ambiente virtual
 python -m venv venv
@@ -186,7 +246,7 @@ python -m venv venv
 source venv/bin/activate
 ```
 
-## Instalar Todas as Dependências
+### Instalar Todas as Dependências
 
 ```bash
 # Instalar dependências do projeto
@@ -195,53 +255,60 @@ pip install -r requirements.txt
 
 **Nota**: O arquivo `requirements.txt` contém todas as bibliotecas necessárias, incluindo Streamlit, Pandas, Plotly, ReportLab, etc.
 
-## Comandos para Rodar o Projeto
+### Comandos para Rodar o Projeto Localmente
 
-### 1. Executar Pipeline ETL (Processar Dados)
+#### 1. Executar Pipeline ETL Automatizado (Processar Dados)
+```bash
+# Executar ETL automatizado que detecta novos dados
+python automate_etl.py
+```
+**Quando usar**: Para processar dados automaticamente, incluindo detecção de novos arquivos em DataSources.
+
+#### 2. Executar Pipeline ETL Padrão
 ```bash
 # Executar ETL completo com arquivos tratados de Altamira
 python run_etl.py
 ```
-**Quando usar**: Sempre que precisar processar ou atualizar os dados no banco. Executa extração, transformação e carga automaticamente.
+**Quando usar**: Para processamento específico dos dados tratados de Altamira.
 
-### 2. Executar Dashboard Principal
+#### 3. Executar Dashboard Principal
 ```bash
 # Iniciar aplicação Streamlit principal
 streamlit run streamlit_app.py
 ```
 **Quando usar**: Para acessar o dashboard completo com todas as análises. Abre em `http://localhost:8501`.
 
-### 3. Executar Dashboard BI Específico
+#### 4. Executar Dashboard BI Específico
 ```bash
 # Executar apenas o módulo de Business Intelligence
 streamlit run Consumption/BI/bi_dashboard.py
 ```
 **Quando usar**: Para análises focadas em BI, sem as outras abas do dashboard principal.
 
-### 4. Executar Preview dos Dados
+#### 5. Executar Preview dos Dados
 ```bash
 # Visualizar dados brutos processados
 streamlit run Consumption/Preview/preview.py
 ```
 **Quando usar**: Para inspeção rápida dos dados no banco, útil durante desenvolvimento ou debug.
 
-### 5. Gerar Relatório PDF
+#### 6. Gerar Relatório PDF
 ```bash
 # Gerar relatório automatizado
 python Consumption/Reports/reports.py
 ```
 **Quando usar**: Para criar relatórios em PDF com análises principais. O arquivo é salvo como `relatorio_enem.pdf`.
 
-### 6. Verificar Estrutura do Banco
+#### 7. Verificar Estrutura do Banco
 ```bash
 # Executar script de verificação
 python check_db.py
 ```
 **Quando usar**: Para validar se o banco de dados foi criado corretamente e verificar integridade dos dados.
 
-## Ordem Recomendada de Execução
+### Ordem Recomendada de Execução Local
 
-1. **Primeira vez**: `python run_etl.py` (processa dados)
+1. **Primeira vez**: `python automate_etl.py` (processa dados automaticamente)
 2. **Exploração**: `streamlit run streamlit_app.py` (dashboard principal)
 3. **Análises específicas**: Use os outros comandos conforme necessário
 4. **Compartilhamento**: `python Consumption/Reports/reports.py` (gerar PDF)

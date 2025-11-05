@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  enem-analytics:
+    build: .
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./DataSources:/app/DataSources
+      - ./DWStorage:/app/DWStorage
+      - ./Consumption/Reports:/app/Consumption/Reports
+    environment:
+      - PYTHONPATH=/app
+    command: [ "sh", "-c", "python automate_etl.py && streamlit run streamlit_app.py --server.port=8501 --server.address=0.0.0.0" ]
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8501" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+  # Serviço opcional para banco de dados persistente (SQLite já está embutido)
+  # db:
+  #   image: sqlite3:latest
+  #   volumes:
+  #     - ./DWStorage:/data
+  #   command: ["sqlite3", "/data/enem_analysis.db"]

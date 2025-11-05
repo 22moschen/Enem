@@ -1,8 +1,11 @@
-# TODO: Atualizar Repositório Git
+# TODO: Automatizar Projeto ENEMAnalytics com Docker
 
 ## Passos para Completar a Tarefa
 
-- [ ] Atualizar o arquivo .gitignore para ignorar arquivos não rastreados (ambientes virtuais, __pycache__, bancos de dados, PDFs, etc.)
-- [ ] Executar `git add .` para adicionar todas as mudanças
-- [ ] Executar `git commit -m "Atualizar .gitignore e adicionar arquivos relevantes"` para commitar as mudanças
-- [ ] Executar `git push` para enviar as mudanças para o repositório remoto
+- [ ] Analisar o pipeline ETL atual para entender como automatizar com novos dados
+- [ ] Criar script de automação para detectar e processar novos arquivos em DataSources
+- [ ] Desenvolver Dockerfile para containerizar a aplicação Python
+- [ ] Criar docker-compose.yml com serviços para app, banco de dados e automação
+- [ ] Testar a configuração Docker para garantir funcionamento automático
+- [ ] Atualizar README.md com instruções para execução via Docker Compose
+- [ ] Commitar e enviar mudanças para o repositório

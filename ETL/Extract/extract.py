@@ -1,5 +1,23 @@
 import pandas as pd
 import os
+import hashlib
+from datetime import datetime
+
+def calculate_file_checksum(file_path):
+    """
+    Calcula o hash MD5 do arquivo para verificação de integridade.
+
+    Args:
+        file_path (str): Caminho para o arquivo.
+
+    Returns:
+        str: Hash MD5 do arquivo.
+    """
+    hash_md5 = hashlib.md5()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_md5.update(chunk)
+    return hash_md5.hexdigest()
 
 def extract_enem_data(file_path):
     """
@@ -9,10 +27,13 @@ def extract_enem_data(file_path):
         file_path (str): Caminho para o arquivo CSV dos microdados.
 
     Returns:
-        pd.DataFrame: DataFrame com os dados extraídos.
+        tuple: (pd.DataFrame com os dados extraídos, str checksum do arquivo).
     """
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"Arquivo não encontrado: {file_path}")
+
+    # Calcular checksum antes do processamento
+    checksum = calculate_file_checksum(file_path)
 
     # Ler apenas colunas relevantes para Altamira-PA
     columns_of_interest = [
@@ -27,7 +48,7 @@ def extract_enem_data(file_path):
     df_altamira = df[df['NO_MUNICIPIO_ESC'] == 'Altamira'].copy()
 
     print(f"Dados extraídos: {len(df_altamira)} registros de Altamira-PA")
-    return df_altamira
+    return df_altamira, checksum
 
 def extract_from_altamira_files(participantes_path, resultados_path):
     """
@@ -58,11 +79,18 @@ def extract_from_altamira_files(participantes_path, resultados_path):
 
     df_filtered = df[columns_of_interest].copy()
 
-    # Adicionar município se não existir
-    if 'NO_MUNICIPIO_ESC' not in df_filtered.columns:
-        df_filtered['NO_MUNICIPIO_ESC'] = 'Altamira'
-    if 'SG_UF_ESC' not in df_filtered.columns:
-        df_filtered['SG_UF_ESC'] = 'PA'
+    # Validação rigorosa: garantir que apenas dados de Altamira-PA sejam processados
+    if 'NO_MUNICIPIO_ESC' not in df_filtered.columns or 'SG_UF_ESC' not in df_filtered.columns:
+        raise ValueError("Colunas de município e UF são obrigatórias para filtragem de Altamira-PA")
+
+    # Verificar se há dados de Altamira-PA após filtro
+    if df_filtered.empty:
+        raise ValueError("Nenhum dado encontrado para Altamira-PA após aplicação dos filtros")
+
+    # Log de auditoria
+    print(f"Auditoria: {len(df_filtered)} registros filtrados para Altamira-PA")
+    print(f"Auditoria: Distribuição por localização: {df_filtered['TP_LOCALIZACAO_ESC'].value_counts().to_dict()}")
+    print(f"Auditoria: Distribuição por dependência: {df_filtered['TP_DEPENDENCIA_ADM_ESC'].value_counts().to_dict()}")
 
     print(f"Dados extraídos dos arquivos tratados: {len(df_filtered)} registros de Altamira-PA")
     return df_filtered

@@ -1,0 +1,184 @@
+/* Custom CSS for ENEMAnalytics Dashboard */
+
+/* General styling */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #0e1117;
+    color: #fafafa;
+}
+
+/* Header styling */
+.css-1d391kg {
+    background: linear-gradient(135deg, #1f77b4 0%, #2ca02c 100%);
+    padding: 1rem;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+}
+
+/* Card styling */
+.css-1r6slb0 {
+    background: linear-gradient(135deg, #262730 0%, #1f77b4 100%);
+    border: 1px solid #1f77b4;
+    border-radius: 10px;
+    padding: 1rem;
+    margin: 0.5rem 0;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Button styling */
+.stButton>button {
+    background: linear-gradient(135deg, #1f77b4 0%, #2ca02c 100%);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 0.5rem 1rem;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.stButton>button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Metric styling */
+.css-1xarl3l {
+    background: linear-gradient(135deg, #262730 0%, #1f77b4 100%);
+    border-radius: 10px;
+    padding: 1rem;
+    margin: 0.5rem 0;
+}
+
+/* Tab styling */
+.stTabs [data-baseweb="tab-list"] {
+    background-color: #262730;
+    border-radius: 10px;
+    padding: 0.5rem;
+}
+
+.stTabs [data-baseweb="tab"] {
+    background-color: transparent;
+    border-radius: 5px;
+    color: #fafafa;
+    transition: all 0.3s ease;
+}
+
+.stTabs [data-baseweb="tab"]:hover {
+    background-color: #1f77b4;
+}
+
+.stTabs [aria-selected="true"] {
+    background-color: #1f77b4 !important;
+    color: white !important;
+}
+
+/* Sidebar styling */
+.css-1lcbmhc {
+    background: linear-gradient(180deg, #262730 0%, #1f77b4 100%);
+    border-radius: 10px;
+    padding: 1rem;
+}
+
+/* Dataframe styling */
+.css-1n76uvr {
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+/* Plotly chart styling */
+.js-plotly-plot {
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Animation for loading */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.stSpinner {
+    animation: fadeIn 0.5s ease-in;
+}
+
+/* Custom metric cards */
+.metric-card {
+    background: linear-gradient(135deg, #1f77b4 0%, #2ca02c 100%);
+    border-radius: 10px;
+    padding: 1rem;
+    margin: 0.5rem 0;
+    color: white;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease;
+}
+
+.metric-card:hover {
+    transform: translateY(-5px);
+}
+
+/* Info boxes */
+.stAlert {
+    border-radius: 10px;
+    border-left: 5px solid #1f77b4;
+}
+
+/* Success messages */
+.stSuccess {
+    background: linear-gradient(135deg, #2ca02c 0%, #1f77b4 100%);
+    border-radius: 10px;
+    color: white;
+}
+
+/* Warning messages */
+.stWarning {
+    background: linear-gradient(135deg, #ff7f0e 0%, #1f77b4 100%);
+    border-radius: 10px;
+    color: white;
+}
+
+/* Error messages */
+.stError {
+    background: linear-gradient(135deg, #d62728 0%, #1f77b4 100%);
+    border-radius: 10px;
+    color: white;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #262730;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #1f77b4;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #2ca02c;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .css-1d391kg {
+        padding: 0.5rem;
+    }
+
+    .css-1r6slb0 {
+        padding: 0.5rem;
+    }
+
+    .metric-card {
+        padding: 0.5rem;
+    }
+}

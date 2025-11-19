@@ -39,7 +39,7 @@ def extract_enem_data(file_path):
     columns_of_interest = [
         'NU_INSCRICAO', 'TP_PRESENCA_CN', 'TP_PRESENCA_CH', 'TP_PRESENCA_LC', 'TP_PRESENCA_MT',
         'NU_NOTA_CN', 'NU_NOTA_CH', 'NU_NOTA_LC', 'NU_NOTA_MT', 'NU_NOTA_REDACAO',
-        'TP_LOCALIZACAO_ESC', 'TP_DEPENDENCIA_ADM_ESC', 'NO_MUNICIPIO_ESC', 'SG_UF_ESC'
+        'TP_LOCALIZACAO_ESC', 'TP_DEPENDENCIA_ADM_ESC', 'NO_MUNICIPIO_ESC', 'SG_UF_ESC', 'NU_ANO'
     ]
 
     df = pd.read_csv(file_path, sep=';', encoding='latin1', usecols=columns_of_interest, low_memory=False)
@@ -47,7 +47,20 @@ def extract_enem_data(file_path):
     # Filtrar apenas Altamira-PA
     df_altamira = df[df['NO_MUNICIPIO_ESC'] == 'Altamira'].copy()
 
-    print(f"Dados extraídos: {len(df_altamira)} registros de Altamira-PA")
+    # Extrair ano do nome do arquivo se NU_ANO não estiver presente ou for nulo
+    filename = os.path.basename(file_path)
+    import re
+    match = re.search(r'(\d{4})', filename)
+    ano_arquivo = int(match.group(1)) if match else 2023
+
+    # Garantir que a coluna NU_ANO tenha o ano correto
+    if 'NU_ANO' not in df_altamira.columns or df_altamira['NU_ANO'].isna().all():
+        df_altamira['NU_ANO'] = ano_arquivo
+    else:
+        # Preencher valores nulos com o ano do arquivo
+        df_altamira['NU_ANO'] = df_altamira['NU_ANO'].fillna(ano_arquivo)
+
+    print(f"Dados extraídos: {len(df_altamira)} registros de Altamira-PA (Ano: {ano_arquivo})")
     return df_altamira, checksum
 
 def extract_from_altamira_files(participantes_path, resultados_path):

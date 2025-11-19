@@ -1,11 +1,12 @@
-# TODO: Automatizar Projeto ENEMAnalytics com Docker
+# TODO: Explicar .dockerignore e Gerenciar Branch/Commit
 
-## Passos para Completar a Tarefa
-
-- [x] Analisar o pipeline ETL atual para entender como automatizar com novos dados
-- [x] Criar script de automação para detectar e processar novos arquivos em DataSources
-- [x] Desenvolver Dockerfile para containerizar a aplicação Python
-- [x] Criar docker-compose.yml com serviços para app, banco de dados e automação
-- [x] Testar a configuração Docker para garantir funcionamento automático
-- [x] Atualizar README.md com instruções para execução via Docker Compose
-- [x] Commitar e enviar mudanças para o repositório
+## Passos a Completar:
+- [x] Explicar o propósito, utilidade e necessidade de commit do .dockerignore
+- [x] Verificar status do Git (git status) - Alterações incluem modificações no ETL, remoção de arquivos teste, adição de .dockerignore, etc.
+- [x] Stash das alterações locais
+- [x] Checkout para main
+- [x] Criar nova branch "feature/etl-cleanup-docker" a partir de main
+- [x] Aplicar stash
+- [ ] Adicionar arquivos modificados (git add .)
+- [ ] Fazer commit das alterações (git commit -m "Adiciona .dockerignore e limpa arquivos de teste no ETL")
+- [ ] Pushar para repositório remoto (git push origin feature/etl-cleanup-docker)

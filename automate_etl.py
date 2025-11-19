@@ -118,10 +118,10 @@ def process_file(file_path):
                 year = int(match.group(1)) if match else 2023  # Default para 2023 se não encontrar
 
                 # Transformar dados
-                transformed = transform_enem_data(df)
+                transformed = transform_enem_data(df, ano=year)
 
-                # Carregar dados
-                load_to_sqlite(transformed, 'DWStorage/enem_analysis.db')
+                # Carregar dados com separação por ano
+                load_to_sqlite_with_year(transformed, 'DWStorage/enem_analysis.db')
 
                 # Carregar métricas de qualidade separadamente
                 if 'quality_metrics' in transformed:

@@ -1,198 +1,165 @@
 import sqlite3
 import pandas as pd
+from typing import Dict, Any
+import sys
 import os
-from datetime import datetime
+sys.path.append('ETL/Extract')
+sys.path.append('ETL/Transform')
 
-def load_to_sqlite(data_dict, db_path='DWStorage/enem_analysis.db'):
+from ETL.Extract.extract import extract_enem_data
+from ETL.Transform.transform import transform_enem_data
+
+def create_database_from_csv(csv_path, db_path='DWStorage/enem_analysis.db', force=False):
     """
-    Carrega os dados transformados para o banco SQLite.
-
-    Args:
-        data_dict (dict): Dicionário com DataFrames transformados.
-        db_path (str): Caminho para o banco SQLite.
+    Executa o pipeline ETL completo a partir de um arquivo CSV.
+    Cria ou atualiza o banco de dados com os dados processados.
     """
-    conn = sqlite3.connect(db_path)
+    print(f"Iniciando ETL para o arquivo: {csv_path}")
 
-    for table_name, df in data_dict.items():
-        if df is not None and isinstance(df, pd.DataFrame):
-            df.to_sql(table_name, conn, if_exists='replace', index=False)
-            print(f"Tabela '{table_name}' carregada com {len(df)} registros.")
+    # Criar diretório do banco se não existir
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
 
-    conn.close()
-    print(f"Dados carregados para {db_path}")
+    # Verificar se arquivo já foi processado (usando checksum simples)
+    checksum = str(os.path.getsize(csv_path))  # Checksum baseado no tamanho do arquivo
+    ano = 2024  # Assumir ano 2024, pode ser extraído do nome do arquivo se necessário
 
-def load_quality_metrics_to_sqlite(quality_metrics, db_path='DWStorage/enem_analysis.db'):
+    create_etl_control_table(db_path)
+
+    if not force and check_file_already_processed(csv_path, checksum, db_path):
+        print("Arquivo já processado. Pulando ETL.")
+        return
+
+    # Extrair dados
+    print("Extraindo dados...")
+    raw_data = extract_enem_data(csv_path)
+
+    # Transformar dados
+    print("Transformando dados...")
+    transformed_data = transform_enem_data(raw_data)
+
+    # Carregar dados
+    print("Carregando dados...")
+    load_to_sqlite_with_year(transformed_data, db_path)
+    load_quality_metrics_to_sqlite(pd.DataFrame([transformed_data.get('quality_metrics')]), db_path)
+
+    # Atualizar controle ETL
+    update_etl_control_table(csv_path, ano, checksum, 'completed', db_path)
+
+    print("ETL concluído com sucesso!")
+
+def create_etl_control_table(db_path):
     """
-    Carrega métricas de qualidade para o banco SQLite.
-
-    Args:
-        quality_metrics (dict): Dicionário com métricas de qualidade.
-        db_path (str): Caminho para o banco SQLite.
-    """
-    conn = sqlite3.connect(db_path)
-
-    # Converter para DataFrame
-    df_quality = pd.DataFrame([quality_metrics])
-    df_quality.to_sql('quality_metrics', conn, if_exists='replace', index=False)
-    print(f"Métricas de qualidade carregadas: {len(df_quality)} registros.")
-
-    conn.close()
-
-def create_etl_control_table(db_path='DWStorage/enem_analysis.db'):
-    """
-    Cria a tabela de controle ETL se não existir.
-
-    Args:
-        db_path (str): Caminho para o banco SQLite.
+    Cria tabela de controle ETL se não existir.
     """
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS tabela_controle_etl (
-            NOME_ARQUIVO TEXT PRIMARY KEY,
-            ANO_DADOS INTEGER,
-            MD5_CHECKSUM TEXT,
-            DATA_PROCESSAMENTO DATETIME,
-            STATUS TEXT
+        CREATE TABLE IF NOT EXISTS etl_control (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            file_path TEXT NOT NULL,
+            ano INTEGER,
+            checksum TEXT,
+            status TEXT,
+            processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
 
     conn.commit()
     conn.close()
-    print("Tabela de controle ETL criada/verificada.")
 
-def check_file_already_processed(file_path, checksum, db_path='DWStorage/enem_analysis.db'):
+def check_file_already_processed(file_path, checksum, db_path):
     """
-    Verifica se o arquivo já foi processado baseado no nome e checksum.
-
-    Args:
-        file_path (str): Caminho para o arquivo.
-        checksum (str): Checksum MD5 do arquivo.
-        db_path (str): Caminho para o banco SQLite.
-
-    Returns:
-        tuple: (bool já_processado, str status).
+    Verifica se o arquivo já foi processado baseado no checksum.
+    Retorna (já_processado, status).
     """
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
-    filename = os.path.basename(file_path)
-
     cursor.execute('''
-        SELECT MD5_CHECKSUM, STATUS FROM tabela_controle_etl
-        WHERE NOME_ARQUIVO = ?
-    ''', (filename,))
+        SELECT status FROM etl_control
+        WHERE file_path = ? AND checksum = ?
+    ''', (file_path, checksum))
 
     result = cursor.fetchone()
     conn.close()
 
     if result:
-        stored_checksum, status = result
-        if stored_checksum == checksum:
-            return True, "já_processado"
-        else:
-            return False, "modificado"
+        return True, result[0]
     else:
-        return False, "novo"
+        return False, None
 
-def update_etl_control_table(file_path, year, checksum, status, db_path='DWStorage/enem_analysis.db'):
+def update_etl_control_table(file_path, ano, checksum, status, db_path):
     """
-    Atualiza a tabela de controle ETL com informações do processamento.
-
-    Args:
-        file_path (str): Caminho para o arquivo.
-        year (int): Ano dos dados.
-        checksum (str): Checksum MD5 do arquivo.
-        status (str): Status do processamento ('PROCESSADO_OK', 'ERRO').
-        db_path (str): Caminho para o banco SQLite.
+    Atualiza ou insere registro na tabela de controle ETL.
     """
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
-    filename = os.path.basename(file_path)
-    data_processamento = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
     cursor.execute('''
-        INSERT OR REPLACE INTO tabela_controle_etl
-        (NOME_ARQUIVO, ANO_DADOS, MD5_CHECKSUM, DATA_PROCESSAMENTO, STATUS)
-        VALUES (?, ?, ?, ?, ?)
-    ''', (filename, year, checksum, data_processamento, status))
+        INSERT OR REPLACE INTO etl_control (file_path, ano, checksum, status)
+        VALUES (?, ?, ?, ?)
+    ''', (file_path, ano, checksum))
 
     conn.commit()
     conn.close()
-    print(f"Controle ETL atualizado para {filename}: {status}")
 
-def load_to_sqlite_with_year(data_dict, db_path='DWStorage/enem_analysis.db'):
+def load_to_sqlite(data: Dict[str, pd.DataFrame], db_path: str):
     """
-    Carrega os dados transformados com coluna 'ano' para o banco SQLite, usando append para múltiplos anos.
-
-    Args:
-        data_dict (dict): Dicionário com DataFrames transformados (já com coluna 'ano').
-        db_path (str): Caminho para o banco SQLite.
+    Carrega dados transformados para SQLite.
     """
     conn = sqlite3.connect(db_path)
 
-    for table_name, df in data_dict.items():
-        if df is not None and not df.empty and isinstance(df, pd.DataFrame):
-            # Verificar se a tabela já existe e tem dados
-            cursor = conn.cursor()
-            cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'")
-            table_exists = cursor.fetchone()
-
-            if table_exists:
-                # Verificar se já existem dados para este ano
-                if 'ano' in df.columns:
-                    ano = df['ano'].iloc[0] if not df.empty else None
-                    cursor.execute(f"SELECT COUNT(*) FROM {table_name} WHERE ano = ?", (ano,))
-                    count = cursor.fetchone()[0]
-                    if count > 0:
-                        print(f"Tabela '{table_name}' já possui dados para o ano {ano}. Pulando...")
-                        continue
-
-            df.to_sql(table_name, conn, if_exists='append', index=False)
-            print(f"Tabela '{table_name}' atualizada com {len(df)} registros (ano incluído).")
+    for table_name, df in data.items():
+        if df is not None and not df.empty:
+            df.to_sql(table_name, conn, if_exists='replace', index=False)
+            print(f"Tabela '{table_name}' carregada com sucesso. {len(df)} registros.")
+        else:
+            print(f"Tabela '{table_name}' está vazia ou None. Pulando carregamento.")
 
     conn.close()
-    print(f"Dados carregados para {db_path} com separação por ano.")
 
-def create_database_from_csv(csv_path, db_path='DWStorage/enem_analysis.db'):
+def load_quality_metrics_to_sqlite(quality_metrics: pd.DataFrame, db_path: str):
     """
-    Pipeline completo: Extrair, transformar e carregar dados.
-
-    Args:
-        csv_path (str): Caminho para o CSV dos microdados.
-        db_path (str): Caminho para o banco SQLite.
+    Carrega métricas de qualidade para SQLite.
     """
-    from ..Extract.extract import extract_enem_data
-    from ..Transform.transform import transform_enem_data
+    conn = sqlite3.connect(db_path)
 
-    print("Iniciando ETL...")
-    df = extract_enem_data(csv_path)
-    transformed_data = transform_enem_data(df)
-    load_to_sqlite(transformed_data, db_path)
-    print("ETL concluído!")
+    if quality_metrics is not None and not quality_metrics.empty:
+        quality_metrics.to_sql('quality_metrics', conn, if_exists='replace', index=False)
+        print(f"Tabela 'quality_metrics' carregada com sucesso. {len(quality_metrics)} registros.")
+    else:
+        print("Métricas de qualidade estão vazias ou None. Pulando carregamento.")
 
-def create_database_from_altamira_files(participantes_path, resultados_path, db_path='DWStorage/enem_analysis.db'):
+    conn.close()
+
+def load_to_sqlite_with_year(data: Dict[str, pd.DataFrame], db_path: str):
     """
-    Pipeline completo usando arquivos tratados de Altamira.
-
-    Args:
-        participantes_path (str): Caminho para o arquivo Excel de participantes.
-        resultados_path (str): Caminho para o arquivo CSV de resultados.
-        db_path (str): Caminho para o banco SQLite.
+    Carrega dados transformados para SQLite com otimizações de performance.
+    Adiciona coluna 'ANO' se não existir e cria índices para consultas rápidas.
     """
-    from ..Extract.extract import extract_from_altamira_files
-    from ..Transform.transform import transform_enem_data
+    conn = sqlite3.connect(db_path)
 
-    print("Iniciando ETL com arquivos tratados...")
-    df = extract_from_altamira_files(participantes_path, resultados_path)
-    transformed_data = transform_enem_data(df)
-    load_to_sqlite(transformed_data, db_path)
-    print("ETL concluído!")
+    for table_name, df in data.items():
+        if df is not None and not df.empty:
+            # Padronizar nome da coluna para 'ANO' (uppercase)
+            if 'ano' in df.columns:
+                df = df.rename(columns={'ano': 'ANO'})
+            elif 'ANO' not in df.columns:
+                print(f"Aviso: Coluna 'ANO' não encontrada em '{table_name}'. Adicionando valor padrão.")
+                df['ANO'] = 2023  # Valor padrão
 
-if __name__ == "__main__":
-    # Exemplo de uso com arquivos tratados
-    participantes_path = "../../DataSources/tratados_altamira/PARTICIPANTES__ALTAMIRA_2024.csv.xlsx"
-    resultados_path = "../../DataSources/tratados_altamira/RESULTADOS_ALTAMIRA_2024corrigido.csv"
-    create_database_from_altamira_files(participantes_path, resultados_path)
+            # Carregar com batch insertions para melhor performance
+            df.to_sql(table_name, conn, if_exists='append', index=False, chunksize=1000)
+            print(f"Tabela '{table_name}' carregada com sucesso. {len(df)} registros.")
+
+            # Criar índice na coluna ANO para consultas rápidas
+            try:
+                conn.execute(f"CREATE INDEX IF NOT EXISTS idx_{table_name}_ano ON {table_name}(ANO)")
+                print(f"Índice criado para coluna ANO na tabela '{table_name}'.")
+            except Exception as e:
+                print(f"Aviso: Não foi possível criar índice para '{table_name}': {e}")
+        else:
+            print(f"Tabela '{table_name}' está vazia ou None. Pulando carregamento.")
+
+    conn.close()

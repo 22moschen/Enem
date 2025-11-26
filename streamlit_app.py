@@ -447,8 +447,19 @@ with tab3:
 
     # Estatísticas descritivas
     st.subheader("Distribuição das Notas")
+    # Substituir índices numéricos pelas iniciais das áreas no eixo x
+    area_labels = {
+        '0': 'CN',
+        '1': 'CH',
+        '2': 'LC',
+        '3': 'MT',
+        '4': 'RED'
+    }
+    df_tmp = df_descritivas.reset_index()
+    df_tmp['index'] = df_tmp['index'].map(lambda x: area_labels.get(str(x), x))
+
     fig_box = px.box(
-        df_descritivas.reset_index(),
+        df_tmp,
         x='index',
         y=['mean', '50%', 'min', 'max'],
         title='Distribuição das Notas por Área'

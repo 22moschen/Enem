@@ -105,7 +105,7 @@ def process_file(file_path):
                 # Verificar se já foi processado
                 already_processed, status = check_file_already_processed(file_path, checksum, 'DWStorage/enem_analysis.db')
 
-                if already_processed and status == "já_processado":
+                if already_processed and status in ["já_processado", "PROCESSADO_OK"]:
                     print(f"Arquivo {os.path.basename(file_path)} já processado e inalterado. ETL ignorado.")
                     return True
                 elif status == "modificado":

@@ -266,16 +266,16 @@ with tab1:
 with tab2:
     st.header("Correlações entre Áreas do Conhecimento")
 
-    # Heatmap de correlação com melhor formatação
-    fig_heatmap = px.imshow(
-        df_correlacao.drop('ANO', axis=1) if 'ANO' in df_correlacao.columns else df_correlacao,
-        text_auto='.2f',
-        title='Matriz de Correlação entre Áreas do Conhecimento (Altamira-PA)',
-        color_continuous_scale='RdBu_r',
-        labels=dict(x="Área do Conhecimento", y="Área do Conhecimento", color="Correlação")
-    )
+    # Preparar df para heatmap, definir índice alinhado com colunas
+    if 'ANO' in df_correlacao.columns:
+        df_correlacao_heat = df_correlacao.drop('ANO', axis=1)
+    else:
+        df_correlacao_heat = df_correlacao
 
-    # Melhorar labels dos eixos
+    # Definir índice igual às colunas para alinhamento correto dos rótulos em y
+    df_correlacao_heat.index = df_correlacao_heat.columns
+
+    # Mapeamento de labels das áreas
     area_labels = {
         'NU_NOTA_CN': 'Ciências da Natureza',
         'NU_NOTA_CH': 'Ciências Humanas',
@@ -284,10 +284,27 @@ with tab2:
         'NU_NOTA_REDACAO': 'Redação'
     }
 
-    fig_heatmap.update_xaxes(tickvals=list(area_labels.keys()), ticktext=list(area_labels.values()))
-    fig_heatmap.update_yaxes(tickvals=list(area_labels.keys()), ticktext=list(area_labels.values()))
+    # Criar heatmap com índice alinhado
+    fig_heatmap = px.imshow(
+        df_correlacao_heat,
+        text_auto='.2f',
+        title='Matriz de Correlação entre Áreas do Conhecimento (Altamira-PA)',
+        color_continuous_scale='RdBu_r',
+        labels=dict(x="Área do Conhecimento", y="Área do Conhecimento", color="Correlação")
+    )
 
-    st.plotly_chart(fig_heatmap, width='stretch')
+    # Atualizar os ticks dos eixos x e y para aparecerem os labels corretos
+    fig_heatmap.update_xaxes(
+        tickvals=df_correlacao_heat.columns,
+        ticktext=[area_labels[c] for c in df_correlacao_heat.columns]
+    )
+    fig_heatmap.update_yaxes(
+        tickvals=df_correlacao_heat.index,
+        ticktext=[area_labels[c] for c in df_correlacao_heat.index]
+    )
+
+    fig_heatmap.update_layout(width=900, height=600)
+    st.plotly_chart(fig_heatmap)
 
     # Texto explicativo aprimorado
     st.markdown("""
@@ -311,7 +328,7 @@ with tab2:
 
     # Carregar dados processados para scatter plots
     @st.cache_data
-    def load_processed_data():
+    def load_processed_data(selected_year=None):
         db_path = 'DWStorage/enem_analysis.db'
         if not os.path.exists(db_path):
             return None
@@ -319,7 +336,17 @@ with tab2:
         conn = sqlite3.connect(db_path)
         try:
             # Carregar dados originais processados (limitado para performance)
-            df_processed = pd.read_sql_query("SELECT NU_NOTA_CN, NU_NOTA_CH, NU_NOTA_LC, NU_NOTA_MT, NU_NOTA_REDACAO FROM enem_data_processed LIMIT 1000", conn)
+            # Aplicar filtro por ano se disponível
+            where_clause = ""
+            if selected_year is not None:
+                # Verificar se a tabela tem coluna ANO
+                cursor = conn.cursor()
+                cursor.execute("PRAGMA table_info(enem_data_processed)")
+                columns = [col[1] for col in cursor.fetchall()]
+                if 'ANO' in columns:
+                    where_clause = f"WHERE ANO = {selected_year}"
+
+            df_processed = pd.read_sql_query(f"SELECT NU_NOTA_CN, NU_NOTA_CH, NU_NOTA_LC, NU_NOTA_MT, NU_NOTA_REDACAO FROM enem_data_processed {where_clause} LIMIT 1000", conn)
             return df_processed
         except Exception as e:
             st.warning(f"Dados processados não encontrados para scatter plots: {e}")
@@ -327,10 +354,10 @@ with tab2:
         finally:
             conn.close()
 
-    processed_data = load_processed_data()
+    processed_data = load_processed_data(selected_year)
 
     with col1:
-        if processed_data is not None and len(processed_data) > 10:
+        if processed_data is not None and len(processed_data) > 0:
             # Scatter plot: Matemática vs. Ciências da Natureza (alta correlação esperada)
             fig_scatter1 = px.scatter(
                 processed_data,
@@ -351,7 +378,7 @@ with tab2:
             st.info("Dados insuficientes para visualização de dispersão detalhada.")
 
     with col2:
-        if processed_data is not None and len(processed_data) > 10:
+        if processed_data is not None and len(processed_data) > 0:
             # Scatter plot: Redação vs. Linguagens (correlação esperada)
             fig_scatter2 = px.scatter(
                 processed_data,
@@ -367,6 +394,49 @@ with tab2:
             )
             fig_scatter2.update_traces(marker=dict(size=4))
             st.plotly_chart(fig_scatter2)
+
+            # Adicionar informações detalhadas sobre o gráfico
+            st.markdown("""
+            **📊 Interpretação Detalhada do Gráfico:**
+
+            **O que representa cada elemento:**
+            - **Pontos azuis**: Cada ponto representa um estudante de Altamira-PA
+            - **Eixo X**: Nota obtida na prova de Redação (0-1000 pontos)
+            - **Eixo Y**: Nota obtida em Linguagens e Códigos (0-1000 pontos)
+            - **Linha azul (tendência)**: Relação estatística calculada entre as duas áreas
+
+            **Como interpretar a correlação:**
+            - **Correlação Positiva**: A linha sobe da esquerda para a direita
+            - **Força da relação**: Quanto mais próxima a 45°, mais forte a correlação
+            - **Dispersão**: Pontos próximos à linha indicam relação consistente
+
+            **💡 Insights Educacionais:**
+            - Redação e Linguagens compartilham competências em comunicação e interpretação textual
+            - Estudantes fortes em uma área tendem a se beneficiar de reforço na outra
+            - Correlação positiva sugere que habilidades linguísticas gerais influenciam ambas as provas
+
+            **📈 Comparação com outras áreas:**
+            - Compare com Matemática × Ciências da Natureza (geralmente correlação mais forte)
+            - Linguagens × Redação costuma ter correlação moderada a forte
+            - Correlações fracas podem indicar necessidade de abordagens diferenciadas
+            """)
+
+            # Calcular e mostrar estatísticas da correlação
+            corr_value = processed_data['NU_NOTA_REDACAO'].corr(processed_data['NU_NOTA_LC'])
+            st.metric("Coeficiente de Correlação", f"{corr_value:.3f}")
+
+            # Interpretar força da correlação
+            if abs(corr_value) > 0.8:
+                strength = "Muito Forte"
+            elif abs(corr_value) > 0.6:
+                strength = "Forte"
+            elif abs(corr_value) > 0.3:
+                strength = "Moderada"
+            else:
+                strength = "Fraca"
+
+            st.info(f"**Força da Correlação**: {strength} ({'Positiva' if corr_value > 0 else 'Negativa'})")
+
         else:
             st.info("Dados insuficientes para visualização de dispersão detalhada.")
 
@@ -387,40 +457,6 @@ with tab3:
 
     st.dataframe(df_descritivas.fillna(0).style.format("{:.2f}"), width='stretch')
 
-    # Ausências (se disponíveis)
-    if df_ausencias is not None:
-        st.subheader("Taxa de Ausência e Eliminação por Área e Localização (Altamira-PA)")
-        df_ausencias_plot = df_ausencias.melt(id_vars='GRUPO_ANALISE', var_name='Área', value_name='Ausências')
-
-        # Calcular percentuais
-        total_por_grupo = df_ausencias_plot.groupby('GRUPO_ANALISE')['Ausências'].sum().reset_index()
-        df_ausencias_plot = df_ausencias_plot.merge(total_por_grupo, on='GRUPO_ANALISE', suffixes=('', '_total'))
-        df_ausencias_plot['Percentual'] = (df_ausencias_plot['Ausências'] / df_ausencias_plot['Ausências_total']) * 100
-
-        fig_ausencias = px.bar(
-            df_ausencias_plot,
-            x='GRUPO_ANALISE',
-            y='Percentual',
-            color='Área',
-            title='Taxa de Ausência e Eliminação por Área e Localização (Altamira-PA)',
-            barmode='group',
-            text='Percentual'
-        )
-        fig_ausencias.update_traces(texttemplate='%{text:.1f}%', textposition='outside')
-        fig_ausencias.update_layout(yaxis_title="Taxa de Ausência (%)")
-        st.plotly_chart(fig_ausencias, width='stretch')
-
-        # Tooltip adicional
-        st.markdown("""
-        **Interpretação:**
-        - Cada barra representa a porcentagem de ausências/eliminações em uma área específica para cada grupo.
-        - Valores mais altos indicam maior incidência de faltas ou eliminações nessa área.
-        """)
-
-        st.info("💡 **Insight**: Áreas com mais ausências podem indicar dificuldades específicas ou falta de preparação em determinadas matérias.")
-    else:
-        st.warning("Dados de ausências não disponíveis no banco de dados.")
-
     # Dependência administrativa (se disponível)
     if df_dependencia is not None:
         st.subheader("Desempenho por Dependência Administrativa")
@@ -439,7 +475,7 @@ with tab4:
     # Gerar relatório PDF
     if st.button("📄 Gerar Relatório PDF"):
         with st.spinner("Gerando relatório..."):
-            generate_report()
+            generate_report(selected_year, df_desempenho, df_correlacao, df_descritivas)
         st.success("Relatório 'relatorio_enem.pdf' gerado com sucesso!")
 
     # Exportar dados

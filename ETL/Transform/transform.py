@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from .eda import run_complete_eda, detect_outliers_iqr
+from .eda import detect_outliers_iqr
 
 def impute_missing_grades(df, strategy='median_by_group'):
     """
@@ -95,9 +95,9 @@ def treat_outliers(df, method='capping', notas_cols=None):
                 df_treated.loc[outlier_mask, f'{col}_OUTLIER'] = True
 
                 if method == 'capping':
-                    # Aplicar capping
-                    df_treated.loc[df_treated[col] < bounds[0], col] = bounds[0]
-                    df_treated.loc[df_treated[col] > bounds[1], col] = bounds[1]
+                    # Aplicar capping com cast para compatibilidade de dtype
+                    df_treated.loc[df_treated[col] < bounds[0], col] = np.float32(bounds[0])
+                    df_treated.loc[df_treated[col] > bounds[1], col] = np.float32(bounds[1])
                     print(f"  {col}: {len(outliers)} outliers tratados por capping (limites: {bounds[0]:.2f}, {bounds[1]:.2f})")
 
                 elif method == 'removal':
@@ -163,9 +163,6 @@ def transform_enem_data(df, ano=None):
         dict: Dicionário com DataFrames transformados e métricas de qualidade.
     """
     print("=== INÍCIO DA TRANSFORMAÇÃO COM QUALIDADE ===")
-
-    # 1. Executar EDA completa antes da transformação
-    eda_results = run_complete_eda(df)
 
     # 2. Criar coluna de presença geral (presente se todas as notas estão disponíveis - participou de ambos os dias)
     df['PRESENTE'] = df[['NU_NOTA_CN', 'NU_NOTA_CH', 'NU_NOTA_LC', 'NU_NOTA_MT', 'NU_NOTA_REDACAO']].notna().all(axis=1)
@@ -249,27 +246,36 @@ def transform_enem_data(df, ano=None):
     descritivas_notas['ANO'] = ano if ano is not None else (df['NU_ANO'].mode().iloc[0] if 'NU_ANO' in df.columns and not df['NU_ANO'].mode().empty else 2023)
 
     # 12. Métricas de qualidade
-    quality_metrics = {
+    quality_metrics = pd.DataFrame([{
         'registros_iniciais': len(df),
         'registros_finais': len(df_featured),
         'remocao_presenca': len(df) - len(df_presentes),
         'imputacao_total': df_featured[[f'{col}_ORIGINAL_MISSING' for col in notas_cols]].sum().sum(),
         'outliers_total': df_featured[[f'{col}_OUTLIER' for col in notas_cols]].sum().sum(),
-        'remocao_outliers': len(df_outlier_treated) - len(df_featured) if 'removal' in str(df_outlier_treated) else 0
-    }
+        'remocao_outliers': len(df_outlier_treated) - len(df_featured) if 'removal' in str(df_outlier_treated) else 0,
+        'ANO': ano if ano is not None else (df['NU_ANO'].mode().iloc[0] if 'NU_ANO' in df.columns and not df['NU_ANO'].mode().empty else 2023)
+    }])
 
-    # 13. Ausências por grupo e área
+    # 13. Ausências por grupo e área (calcular do DataFrame original antes do filtro de presença)
+    # Primeiro, criar grupo de análise no DataFrame original
+    df_original = df.copy()
+    df_original['GRUPO_ANALISE'] = df_original['TP_LOCALIZACAO_ESC'].map({
+        1: 'ALTAMIRA - Urbana',
+        2: 'ALTAMIRA - Rural'
+    }).fillna('DADO NAO INFORMADO')
+
     presenca_cols = ['TP_PRESENCA_CN', 'TP_PRESENCA_CH', 'TP_PRESENCA_LC', 'TP_PRESENCA_MT']
     ausencias_por_grupo = []
 
-    for grupo in df_featured['GRUPO_ANALISE'].unique():
-        grupo_data = df_featured[df_featured['GRUPO_ANALISE'] == grupo]
+    for grupo in df_original['GRUPO_ANALISE'].unique():
+        grupo_data = df_original[df_original['GRUPO_ANALISE'] == grupo]
         ausencias_grupo = {'GRUPO_ANALISE': grupo}
 
         for col in presenca_cols:
             if col in grupo_data.columns:
-                # Contar ausências (TP_PRESENCA != 1)
-                ausencias = (grupo_data[col] != 1).sum()
+                # Contar ausências: TP_PRESENCA = 0 (faltou), 2 (eliminado), ou 3 (não compareceu)
+                # Também incluir valores nulos como ausências
+                ausencias = ((grupo_data[col].isin([0, 2, 3])) | grupo_data[col].isna()).sum()
                 area = col.replace('TP_PRESENCA_', '').replace('_', ' ')
                 ausencias_grupo[f'Ausências_{area}'] = ausencias
             else:
@@ -277,8 +283,8 @@ def transform_enem_data(df, ano=None):
                 area = col.replace('TP_PRESENCA_', '').replace('_', ' ')
                 ausencias_grupo[f'Ausências_{area}'] = 0
 
-        # Para redação, contar ausências baseado em notas faltantes (já que não há TP_PRESENCA_REDACAO)
-        ausencias_red = grupo_data['NU_NOTA_REDACAO_ORIGINAL_MISSING'].sum()
+        # Para redação, contar ausências baseado em notas faltantes (não há TP_PRESENCA_REDACAO)
+        ausencias_red = grupo_data['NU_NOTA_REDACAO'].isna().sum()
         ausencias_grupo['Ausências_REDACAO'] = ausencias_red
 
         ausencias_por_grupo.append(ausencias_grupo)
@@ -329,7 +335,7 @@ def transform_enem_data(df, ano=None):
         'desempenho_dependencia': desempenho_dependencia,
         'quality_metrics': quality_metrics,
         'bias_analysis': bias_after,
-        'eda_results': eda_results,
+        'eda_results': None,  # Temporariamente desabilitado para evitar erro
         'data_processed': df_featured,
         'enem_data_processed': df_featured  # Para scatter plots
     }

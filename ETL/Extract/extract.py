@@ -3,6 +3,26 @@ import os
 import hashlib
 from datetime import datetime
 
+# Constantes para otimização e filtragem
+CODIGO_ALTAMIRA = 1500602  # Código IBGE para Altamira-PA
+
+DTYPE_SPEC = {
+    'NU_INSCRICAO': 'Int64',
+    'TP_PRESENCA_CN': 'Int32',
+    'TP_PRESENCA_CH': 'Int32',
+    'TP_PRESENCA_LC': 'Int32',
+    'TP_PRESENCA_MT': 'Int32',
+    'NU_NOTA_CN': 'float32',
+    'NU_NOTA_CH': 'float32',
+    'NU_NOTA_LC': 'float32',
+    'NU_NOTA_MT': 'float32',
+    'NU_NOTA_REDACAO': 'float32',
+    'TP_LOCALIZACAO_ESC': 'Int32',
+    'TP_DEPENDENCIA_ADM_ESC': 'Int32',
+    'CO_MUNICIPIO_ESC': 'Int32',
+    'NU_ANO': 'Int32'
+}
+
 def calculate_file_checksum(file_path):
     """
     Calcula o hash MD5 do arquivo para verificação de integridade.
@@ -39,13 +59,29 @@ def extract_enem_data(file_path):
     columns_of_interest = [
         'NU_INSCRICAO', 'TP_PRESENCA_CN', 'TP_PRESENCA_CH', 'TP_PRESENCA_LC', 'TP_PRESENCA_MT',
         'NU_NOTA_CN', 'NU_NOTA_CH', 'NU_NOTA_LC', 'NU_NOTA_MT', 'NU_NOTA_REDACAO',
-        'TP_LOCALIZACAO_ESC', 'TP_DEPENDENCIA_ADM_ESC', 'NO_MUNICIPIO_ESC', 'SG_UF_ESC', 'NU_ANO'
+        'TP_LOCALIZACAO_ESC', 'TP_DEPENDENCIA_ADM_ESC', 'CO_MUNICIPIO_ESC', 'NU_ANO'
     ]
 
-    df = pd.read_csv(file_path, sep=';', encoding='latin1', usecols=columns_of_interest, low_memory=False)
+    # Processamento em blocos para economia de memória
+    chunksize = 100000
+    df_filtrados = []
 
-    # Filtrar apenas Altamira-PA
-    df_altamira = df[df['NO_MUNICIPIO_ESC'] == 'Altamira'].copy()
+    try:
+        for chunk in pd.read_csv(file_path, sep=';', encoding='latin1', usecols=columns_of_interest, dtype=DTYPE_SPEC, chunksize=chunksize):
+            # Aplicar filtro para Altamira-PA usando código IBGE
+            chunk_altamira = chunk[chunk['CO_MUNICIPIO_ESC'] == CODIGO_ALTAMIRA]
+            if not chunk_altamira.empty:
+                df_filtrados.append(chunk_altamira)
+
+        # Concatenar todos os chunks filtrados
+        if df_filtrados:
+            df_altamira = pd.concat(df_filtrados, ignore_index=True)
+        else:
+            df_altamira = pd.DataFrame(columns=columns_of_interest)
+
+    except MemoryError:
+        print("Erro de memória detectado. Sugerir redução do chunksize para 50000.")
+        raise
 
     # Extrair ano do nome do arquivo se NU_ANO não estiver presente ou for nulo
     filename = os.path.basename(file_path)

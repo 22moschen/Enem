@@ -111,7 +111,7 @@ def load_to_sqlite(data: Dict[str, pd.DataFrame], db_path: str):
     conn = sqlite3.connect(db_path)
 
     for table_name, df in data.items():
-        if df is not None and not df.empty:
+        if df is not None and isinstance(df, pd.DataFrame) and not df.empty:
             df.to_sql(table_name, conn, if_exists='replace', index=False)
             print(f"Tabela '{table_name}' carregada com sucesso. {len(df)} registros.")
         else:
@@ -141,7 +141,7 @@ def load_to_sqlite_with_year(data: Dict[str, pd.DataFrame], db_path: str):
     conn = sqlite3.connect(db_path)
 
     for table_name, df in data.items():
-        if df is not None and not df.empty:
+        if df is not None and isinstance(df, pd.DataFrame) and not df.empty:
             # Padronizar nome da coluna para 'ANO' (uppercase)
             if 'ano' in df.columns:
                 df = df.rename(columns={'ano': 'ANO'})

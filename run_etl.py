@@ -4,31 +4,31 @@ sys.path.append('ETL/Extract')
 sys.path.append('ETL/Transform')
 sys.path.append('ETL/Load')
 
-from ETL.Extract.extract import extract_enem_data
+from ETL.Extract.extract import extract_from_altamira_files
 from ETL.Transform.transform import transform_enem_data
-from ETL.Load.load import load_to_sqlite
+from ETL.Load.load import load_to_sqlite, load_quality_metrics_to_sqlite
 
 def main():
     print("Iniciando ETL com arquivos tratados de Altamira...")
 
-    # Usar os arquivos tratados de Altamira
+    # Usar os arquivos tratados de Altamira (corrigir caminho)
     participantes_path = "DataSources/tratados_altamira/PARTICIPANTES__ALTAMIRA_2024.csv.xlsx"
     resultados_path = "DataSources/tratados_altamira/RESULTADOS_ALTAMIRA_2024corrigido.csv"
 
-    # Como os arquivos não têm chaves comuns, vamos processar o arquivo de resultados diretamente
-    # e adicionar dados demográficos se possível
-    import pandas as pd
+    # Extrair dados usando função validada
+    df = extract_from_altamira_files(participantes_path, resultados_path)
 
-    df_resultados = pd.read_csv(resultados_path, sep=';', encoding='latin1')
-    df_participantes = pd.read_excel(participantes_path)
+    # Transformar com qualidade e validações, passando ano 2024
+    transformed_data = transform_enem_data(df, ano=2024)
 
-    # Merge on CO_MUNICIPIO_PROVA (ambos têm Altamira)
-    df = pd.merge(df_participantes, df_resultados, on='CO_MUNICIPIO_PROVA', how='inner')
+    # Carregar dados principais
+    load_to_sqlite(transformed_data, 'DWStorage/enem_analysis.db')
 
-    transformed_data = transform_enem_data(df)
-    load_to_sqlite(transformed_data, 'enem_analysis.db')
+    # Carregar métricas de qualidade separadamente
+    if 'quality_metrics' in transformed_data:
+        load_quality_metrics_to_sqlite(transformed_data['quality_metrics'], 'DWStorage/enem_analysis.db')
 
-    print("ETL concluído!")
+    print("ETL concluído com validações de qualidade!")
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,16 @@
+DataSources/
+DWStorage/
+venv_fresh/
+venv_new/
+.git/
+*.log
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+.DS_Store
+Thumbs.db

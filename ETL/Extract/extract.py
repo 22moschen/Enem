@@ -1,5 +1,43 @@
 import pandas as pd
 import os
+import hashlib
+from datetime import datetime
+
+# Constantes para otimização e filtragem
+CODIGO_ALTAMIRA = 1500602  # Código IBGE para Altamira-PA
+
+DTYPE_SPEC = {
+    'NU_INSCRICAO': 'Int64',
+    'TP_PRESENCA_CN': 'Int32',
+    'TP_PRESENCA_CH': 'Int32',
+    'TP_PRESENCA_LC': 'Int32',
+    'TP_PRESENCA_MT': 'Int32',
+    'NU_NOTA_CN': 'float32',
+    'NU_NOTA_CH': 'float32',
+    'NU_NOTA_LC': 'float32',
+    'NU_NOTA_MT': 'float32',
+    'NU_NOTA_REDACAO': 'float32',
+    'TP_LOCALIZACAO_ESC': 'Int32',
+    'TP_DEPENDENCIA_ADM_ESC': 'Int32',
+    'CO_MUNICIPIO_ESC': 'Int32',
+    'NU_ANO': 'Int32'
+}
+
+def calculate_file_checksum(file_path):
+    """
+    Calcula o hash MD5 do arquivo para verificação de integridade.
+
+    Args:
+        file_path (str): Caminho para o arquivo.
+
+    Returns:
+        str: Hash MD5 do arquivo.
+    """
+    hash_md5 = hashlib.md5()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_md5.update(chunk)
+    return hash_md5.hexdigest()
 
 def extract_enem_data(file_path):
     """
@@ -9,25 +47,57 @@ def extract_enem_data(file_path):
         file_path (str): Caminho para o arquivo CSV dos microdados.
 
     Returns:
-        pd.DataFrame: DataFrame com os dados extraídos.
+        tuple: (pd.DataFrame com os dados extraídos, str checksum do arquivo).
     """
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"Arquivo não encontrado: {file_path}")
+
+    # Calcular checksum antes do processamento
+    checksum = calculate_file_checksum(file_path)
 
     # Ler apenas colunas relevantes para Altamira-PA
     columns_of_interest = [
         'NU_INSCRICAO', 'TP_PRESENCA_CN', 'TP_PRESENCA_CH', 'TP_PRESENCA_LC', 'TP_PRESENCA_MT',
         'NU_NOTA_CN', 'NU_NOTA_CH', 'NU_NOTA_LC', 'NU_NOTA_MT', 'NU_NOTA_REDACAO',
-        'TP_LOCALIZACAO_ESC', 'TP_DEPENDENCIA_ADM_ESC', 'NO_MUNICIPIO_ESC', 'SG_UF_ESC'
+        'TP_LOCALIZACAO_ESC', 'TP_DEPENDENCIA_ADM_ESC', 'CO_MUNICIPIO_ESC', 'NU_ANO'
     ]
 
-    df = pd.read_csv(file_path, sep=';', encoding='latin1', usecols=columns_of_interest, low_memory=False)
+    # Processamento em blocos para economia de memória
+    chunksize = 100000
+    df_filtrados = []
 
-    # Filtrar apenas Altamira-PA
-    df_altamira = df[df['NO_MUNICIPIO_ESC'] == 'Altamira'].copy()
+    try:
+        for chunk in pd.read_csv(file_path, sep=';', encoding='latin1', usecols=columns_of_interest, dtype=DTYPE_SPEC, chunksize=chunksize):
+            # Aplicar filtro para Altamira-PA usando código IBGE
+            chunk_altamira = chunk[chunk['CO_MUNICIPIO_ESC'] == CODIGO_ALTAMIRA]
+            if not chunk_altamira.empty:
+                df_filtrados.append(chunk_altamira)
 
-    print(f"Dados extraídos: {len(df_altamira)} registros de Altamira-PA")
-    return df_altamira
+        # Concatenar todos os chunks filtrados
+        if df_filtrados:
+            df_altamira = pd.concat(df_filtrados, ignore_index=True)
+        else:
+            df_altamira = pd.DataFrame(columns=columns_of_interest)
+
+    except MemoryError:
+        print("Erro de memória detectado. Sugerir redução do chunksize para 50000.")
+        raise
+
+    # Extrair ano do nome do arquivo se NU_ANO não estiver presente ou for nulo
+    filename = os.path.basename(file_path)
+    import re
+    match = re.search(r'(\d{4})', filename)
+    ano_arquivo = int(match.group(1)) if match else 2023
+
+    # Garantir que a coluna NU_ANO tenha o ano correto
+    if 'NU_ANO' not in df_altamira.columns or df_altamira['NU_ANO'].isna().all():
+        df_altamira['NU_ANO'] = ano_arquivo
+    else:
+        # Preencher valores nulos com o ano do arquivo
+        df_altamira['NU_ANO'] = df_altamira['NU_ANO'].fillna(ano_arquivo)
+
+    print(f"Dados extraídos: {len(df_altamira)} registros de Altamira-PA (Ano: {ano_arquivo})")
+    return df_altamira, checksum
 
 def extract_from_altamira_files(participantes_path, resultados_path):
     """
@@ -58,11 +128,18 @@ def extract_from_altamira_files(participantes_path, resultados_path):
 
     df_filtered = df[columns_of_interest].copy()
 
-    # Adicionar município se não existir
-    if 'NO_MUNICIPIO_ESC' not in df_filtered.columns:
-        df_filtered['NO_MUNICIPIO_ESC'] = 'Altamira'
-    if 'SG_UF_ESC' not in df_filtered.columns:
-        df_filtered['SG_UF_ESC'] = 'PA'
+    # Validação rigorosa: garantir que apenas dados de Altamira-PA sejam processados
+    if 'NO_MUNICIPIO_ESC' not in df_filtered.columns or 'SG_UF_ESC' not in df_filtered.columns:
+        raise ValueError("Colunas de município e UF são obrigatórias para filtragem de Altamira-PA")
+
+    # Verificar se há dados de Altamira-PA após filtro
+    if df_filtered.empty:
+        raise ValueError("Nenhum dado encontrado para Altamira-PA após aplicação dos filtros")
+
+    # Log de auditoria
+    print(f"Auditoria: {len(df_filtered)} registros filtrados para Altamira-PA")
+    print(f"Auditoria: Distribuição por localização: {df_filtered['TP_LOCALIZACAO_ESC'].value_counts().to_dict()}")
+    print(f"Auditoria: Distribuição por dependência: {df_filtered['TP_DEPENDENCIA_ADM_ESC'].value_counts().to_dict()}")
 
     print(f"Dados extraídos dos arquivos tratados: {len(df_filtered)} registros de Altamira-PA")
     return df_filtered

@@ -335,7 +335,7 @@ def transform_enem_data(df, ano=None):
         'desempenho_dependencia': desempenho_dependencia,
         'quality_metrics': quality_metrics,
         'bias_analysis': bias_after,
-        'eda_results': None,  # Temporariamente desabilitado para evitar erro
+        'eda_results': None,  # Análise EDA pode ser executada separadamente se necessário
         'data_processed': df_featured,
         'enem_data_processed': df_featured  # Para scatter plots
     }

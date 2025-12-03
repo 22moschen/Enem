@@ -7,7 +7,7 @@ import sqlite3
 import streamlit as st
 import os
 from Consumption.Preview.preview import preview_data
-from Consumption.Reports.reports import generate_report
+from Consumption.Reports.reports import generate_audit_report
 from streamlit_extras.colored_header import colored_header
 from ETL.Load.load import create_database_from_csv
 
@@ -21,7 +21,7 @@ load_css()
 # Configurações da página
 st.set_page_config(
     page_title="ENEMAnalytics - Altamira",
-    page_icon="📊",
+    
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -151,7 +151,7 @@ def load_data(selected_year=None):
     return df_desempenho, df_correlacao, df_ausencias, df_descritivas, df_dependencia
 
 # Sidebar
-st.sidebar.title("📊 ENEMAnalytics")
+st.sidebar.title(" ENEMAnalytics")
 st.sidebar.markdown("Análise completa dos microdados do ENEM para Altamira-PA.")
 st.sidebar.markdown("---")
 
@@ -174,8 +174,8 @@ df_desempenho, df_correlacao, df_ausencias, df_descritivas, df_dependencia = loa
 st.sidebar.markdown("---")
 
 # Botão para executar ETL se necessário
-if st.sidebar.button("🔄 Executar ETL (se dados não carregados)"):
-    csv_path = st.sidebar.text_input("Caminho para microdados_enem_.csv", "DataSources/microdados_enem_2024.csv")
+if st.sidebar.button(" Executar ETL (se dados não carregados)"):
+    csv_path = st.sidebar.text_input("Caminho para microdados_enem_.csv", "DataSources/")
     if os.path.exists(csv_path):
         with st.spinner("Executando ETL..."):
             create_database_from_csv(csv_path)
@@ -212,7 +212,7 @@ if df_desempenho is None:
     st.stop()
 
 # Tabs principais
-tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(["📈 Desempenho", "🔗 Correlações", "📊 Estatísticas", "📋 Relatórios", "🔍 Preview", "🔬 Análise Exploratória e Credibilidade", "📚 Glossário"])
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([" Desempenho", " Correlações", " Estatísticas", " Relatórios", " Preview", " Análise Exploratória e Credibilidade", " Glossário"])
 
 with tab1:
     st.header("Desempenho por Grupo de Análise")
@@ -250,7 +250,7 @@ with tab1:
     st.dataframe(df_plot.style.highlight_max(axis=0), width='stretch')
 
     # Legenda dos Acrônimos
-    st.subheader("📚 Legenda dos Acrônimos")
+    st.subheader(" Legenda dos Acrônimos")
     st.markdown("""
     - **CN_Média**: Média em Ciências da Natureza
     - **CH_Média**: Média em Ciências Humanas
@@ -261,7 +261,7 @@ with tab1:
     """)
 
     # Insights
-    st.info("💡 **Insight**: Grupos urbanos tendem a ter médias mais altas, possivelmente devido a melhor infraestrutura educacional.")
+    st.info(" **Insight**: Grupos urbanos tendem a ter médias mais altas, possivelmente devido a melhor infraestrutura educacional.")
 
 with tab2:
     st.header("Correlações entre Áreas do Conhecimento")
@@ -397,25 +397,25 @@ with tab2:
 
             # Adicionar informações detalhadas sobre o gráfico
             st.markdown("""
-            **📊 Interpretação Detalhada do Gráfico:**
+            #  Interpretação Detalhada do Gráfico:
 
-            **O que representa cada elemento:**
+            ## O que representa cada elemento:
             - **Pontos azuis**: Cada ponto representa um estudante de Altamira-PA
             - **Eixo X**: Nota obtida na prova de Redação (0-1000 pontos)
             - **Eixo Y**: Nota obtida em Linguagens e Códigos (0-1000 pontos)
             - **Linha azul (tendência)**: Relação estatística calculada entre as duas áreas
 
-            **Como interpretar a correlação:**
+            ## Como interpretar a correlação:
             - **Correlação Positiva**: A linha sobe da esquerda para a direita
             - **Força da relação**: Quanto mais próxima a 45°, mais forte a correlação
             - **Dispersão**: Pontos próximos à linha indicam relação consistente
 
-            **💡 Insights Educacionais:**
+            #** Insights Educacionais:**
             - Redação e Linguagens compartilham competências em comunicação e interpretação textual
             - Estudantes fortes em uma área tendem a se beneficiar de reforço na outra
             - Correlação positiva sugere que habilidades linguísticas gerais influenciam ambas as provas
 
-            **📈 Comparação com outras áreas:**
+            ** Comparação com outras áreas:**
             - Compare com Matemática × Ciências da Natureza (geralmente correlação mais forte)
             - Linguagens × Redação costuma ter correlação moderada a forte
             - Correlações fracas podem indicar necessidade de abordagens diferenciadas
@@ -440,7 +440,7 @@ with tab2:
         else:
             st.info("Dados insuficientes para visualização de dispersão detalhada.")
 
-    st.info("💡 **Insight**: Correlações positivas indicam que alunos fortes em uma área tendem a performar bem em outras, sugerindo benefícios de abordagens integradas no ensino.")
+    st.info(" **Insight**: Correlações positivas indicam que alunos fortes em uma área tendem a performar bem em outras, sugerindo benefícios de abordagens integradas no ensino.")
 
 with tab3:
     st.header("Estatísticas Descritivas e Ausências")
@@ -484,27 +484,45 @@ with tab4:
     st.header("Relatórios e Exportação")
 
     # Gerar relatório PDF
-    if st.button("📄 Gerar Relatório PDF"):
+    if st.button(" Gerar Relatório PDF"):
         with st.spinner("Gerando relatório..."):
-            generate_report(selected_year, df_desempenho, df_correlacao, df_descritivas)
-        st.success("Relatório 'relatorio_enem.pdf' gerado com sucesso!")
+            db_path = 'DWStorage/enem_analysis.db'
+            conn = sqlite3.connect(db_path)
+            try:
+                result = generate_audit_report(selected_year, conn)
+                if result and not result.startswith("Erro ao gerar relatório"):
+                    pdf_filename = result
+                    st.success(f"Relatório '{pdf_filename}' gerado com sucesso!")
+                    # Provide download button
+                    with open(pdf_filename, "rb") as pdf_file:
+                        st.download_button(
+                            label=" Baixar Relatório PDF",
+                            data=pdf_file,
+                            file_name=pdf_filename,
+                            mime="application/pdf"
+                        )
+                else:
+                    error_msg = result if result else "Erro desconhecido ao gerar relatório."
+                    st.error(f"Erro ao gerar relatório: {error_msg}")
+            finally:
+                conn.close()
 
     # Exportar dados
     st.subheader("Exportar Dados")
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        if st.button("📥 Exportar Desempenho (CSV)"):
+        if st.button(" Exportar Desempenho (CSV)"):
             df_desempenho.to_csv("desempenho_grupo.csv", index=False)
             st.success("Arquivo 'desempenho_grupo.csv' salvo!")
 
     with col2:
-        if st.button("📥 Exportar Correlações (CSV)"):
+        if st.button(" Exportar Correlações (CSV)"):
             df_correlacao.to_csv("correlacao_notas.csv", index=False)
             st.success("Arquivo 'correlacao_notas.csv' salvo!")
 
     with col3:
-        if st.button("📥 Exportar Estatísticas (CSV)"):
+        if st.button(" Exportar Estatísticas (CSV)"):
             df_descritivas.to_csv("descritivas_notas.csv", index=False)
             st.success("Arquivo 'descritivas_notas.csv' salvo!")
 
@@ -522,7 +540,7 @@ with tab5:
     preview_data()
 
 with tab6:
-    st.header("🔬 Análise Exploratória e Credibilidade")
+    st.header(" Análise Exploratória e Credibilidade")
 
     # Carregar métricas de qualidade se disponíveis
     @st.cache_data
@@ -544,7 +562,7 @@ with tab6:
     quality_metrics = load_quality_metrics()
 
     # Seção 1: Comparação Antes/Depois
-    st.subheader("📊 Comparação Antes/Depois do Tratamento")
+    st.subheader(" Comparação Antes/Depois do Tratamento")
 
     if quality_metrics is not None:
         col1, col2, col3 = st.columns(3)
@@ -588,7 +606,7 @@ with tab6:
             st.plotly_chart(fig_after)
 
     # Seção 2: Métricas de Qualidade
-    st.subheader("📈 Métricas de Qualidade do ETL")
+    st.subheader(" Métricas de Qualidade do ETL")
 
     if quality_metrics is not None:
         # Tabela de métricas
@@ -625,37 +643,37 @@ with tab6:
         st.dataframe(metrics_table.style.format({'Valor': '{:,}'}).set_properties(**{'text-align': 'center'}), width='stretch')
 
     # Seção 3: Boas Práticas e Credibilidade
-    st.subheader("✅ Boas Práticas Implementadas")
+    st.subheader(" Boas Práticas Implementadas")
 
     st.markdown("""
-    **🔍 Análise Exploratória de Dados (EDA):**
+    **Análise Exploratória de Dados (EDA):**
     - Verificação completa da estrutura dos dados (tipos, missing values, duplicatas)
     - Análise de distribuições e detecção de padrões anômalos
     - Validação de consistência cruzada entre presença e notas
 
-    **📊 Tratamento Rigoroso de Dados Faltantes:**
+    **Tratamento Rigoroso de Dados Faltantes:**
     - Imputação baseada em medianas por grupo (urbano/rural) para preservar características locais
     - Flags obrigatórios de rastreamento (`*_ORIGINAL_MISSING`) para transparência
     - Estratégia estatisticamente justificada, evitando viés de imputação zero
 
-    **🎯 Detecção e Tratamento de Outliers:**
+    **Detecção e Tratamento de Outliers:**
     - Método IQR (Interquartile Range) para identificação robusta
     - Capping (limitação) em vez de remoção para preservar informações
     - Flags de rastreamento (`*_OUTLIER`) para auditoria
 
-    **🔗 Validação Cruzada de Consistência:**
+    **Validação Cruzada de Consistência:**
     - Verificação de presença vs. notas em todas as áreas
     - Validações de regras de negócio do ENEM
     - Alertas automáticos para inconsistências detectadas
 
-    **🌍 Análise de Viés e Representatividade:**
+    **Análise de Viés e Representatividade:**
     - Distribuição por localização (urbano/rural) e dependência administrativa
     - Verificação de balanceamento demográfico
     - Métricas de diversidade e representatividade
     """)
 
     # Seção 4: Glossário
-    st.subheader("📚 Glossário dos Métodos Utilizados")
+    st.subheader(" Glossário dos Métodos Utilizados")
 
     with st.expander("Clique para expandir o glossário"):
         st.markdown("""
@@ -681,10 +699,10 @@ with tab6:
         """)
 
     # Seção 5: Conclusão de Credibilidade
-    st.subheader("🎯 Conclusão: Credibilidade e Qualidade dos Dados")
+    st.subheader(" Conclusão: Credibilidade e Qualidade dos Dados")
 
     st.success("""
-    **✅ Dados Tratados com Rigor Estatístico**
+     Dados Tratados com Rigor Estatístico
 
     Este dashboard apresenta análises baseadas em dados processados com os mais altos padrões
     de qualidade e integridade estatística. Todas as transformações foram documentadas,

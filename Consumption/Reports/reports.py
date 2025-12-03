@@ -1,128 +1,202 @@
 import pandas as pd
+
 from fpdf import FPDF
 import os
 from datetime import datetime
+import plotly.express as px
+import plotly.io as pio
+import sqlite3
 
-def generate_report(selected_year=None, df_desempenho=None, df_correlacao=None, df_descritivas=None):
+def generate_audit_report(selected_year, db_connection):
     """
-    Generate a PDF report with ENEM analysis summary
+    Generate a professional PDF audit report for ENEM data in Altamira-PA
     """
     try:
+        # Load all necessary data
+        def load_data_for_report(year, conn):
+            where_clause = f"WHERE ANO = {year}" if year else ""
+
+            # Load all required tables
+            df_desempenho = pd.read_sql_query(f"SELECT * FROM desempenho_grupo {where_clause}", conn)
+            df_correlacao = pd.read_sql_query(f"SELECT * FROM correlacao_notas {where_clause}", conn)
+            df_descritivas = pd.read_sql_query(f"SELECT * FROM descritivas_notas {where_clause}", conn)
+            df_ausencias = pd.read_sql_query(f"SELECT * FROM ausencias_grupo {where_clause}", conn)
+            df_dependencia = pd.read_sql_query(f"SELECT * FROM desempenho_dependencia {where_clause}", conn)
+            df_quality = pd.read_sql_query("SELECT * FROM quality_metrics", conn)
+
+            # Load sample data for scatter plot
+            df_processed = pd.read_sql_query(f"SELECT NU_NOTA_CN, NU_NOTA_MT, NU_NOTA_REDACAO, NU_NOTA_LC FROM enem_data_processed {where_clause} LIMIT 1000", conn)
+
+            return df_desempenho, df_correlacao, df_descritivas, df_ausencias, df_dependencia, df_quality, df_processed
+
+        df_desempenho, df_correlacao, df_descritivas, df_ausencias, df_dependencia, df_quality, df_processed = load_data_for_report(selected_year, db_connection)
+
         # Create PDF
         pdf = FPDF()
         pdf.add_page()
 
-        # Title
+        # Title Page
+        pdf.set_font("Arial", "B", 20)
+        pdf.cell(200, 15, "Relatório de Auditoria e Desempenho ENEM", ln=True, align="C")
         pdf.set_font("Arial", "B", 16)
-        pdf.cell(200, 10, "ENEMAnalytics - Relatorio de Analise", ln=True, align="C")
-
-        # Date and Year
+        pdf.cell(200, 10, f"(Altamira-PA) - Ano {selected_year}", ln=True, align="C")
         pdf.set_font("Arial", "", 12)
         pdf.cell(200, 10, f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True, align="C")
-        if selected_year:
-            pdf.cell(200, 10, f"Ano de Analise: {selected_year}", ln=True, align="C")
+        pdf.ln(10)
+        pdf.set_font("Arial", "I", 10)
+        pdf.multi_cell(0, 6, "Este relatório apresenta uma análise completa e auditável dos dados do ENEM em Altamira-PA, combinando métricas de qualidade de dados com insights educacionais acionáveis.")
         pdf.ln(10)
 
-        # Summary
-        pdf.set_font("Arial", "B", 14)
-        pdf.cell(200, 10, "Resumo Executivo", ln=True)
+        # I. Resumo Executivo
+        pdf.set_font("Arial", "B", 16)
+        pdf.cell(200, 12, "I. Resumo Executivo", ln=True)
         pdf.ln(5)
 
         pdf.set_font("Arial", "", 12)
-        summary_text = f"""
-        Este relatorio apresenta uma analise completa dos dados do ENEM
-        para Altamira-PA, incluindo metricas de desempenho, correlacoes
-        entre areas do conhecimento e estatisticas descritivas.
+        pdf.cell(200, 8, f"Data do Relatório: {datetime.now().strftime('%d/%m/%Y')}", ln=True)
+        pdf.cell(200, 8, f"Período Analisado: Ano {selected_year}", ln=True)
+        pdf.ln(5)
 
-        Os dados foram processados seguindo rigorosos padroes estatisticos
-        e estao prontos para tomada de decisoes educacionais.
-        """
+        # KPIs principais
+        if not df_desempenho.empty:
+            media_geral = df_desempenho['Média Geral'].mean()
+            maior_nota = df_desempenho['Média Geral'].max()
+            pdf.cell(200, 8, f"Média Geral: {media_geral:.2f} pontos", ln=True)
+            pdf.cell(200, 8, f"Maior Nota: {maior_nota:.2f} pontos", ln=True)
 
-        # Split text into lines for PDF
-        lines = summary_text.strip().split('\n')
-        for line in lines:
-            pdf.cell(200, 8, line.strip(), ln=True)
+        if not df_ausencias.empty:
+            presenca_total = df_ausencias[['Ausências_CN', 'Ausências_CH', 'Ausências_LC', 'Ausências_MT', 'Ausências_REDACAO']].sum().sum()
+            total_registros = len(df_ausencias) * 5  # 5 areas
+            porcentagem_presenca = ((total_registros - presenca_total) / total_registros) * 100
+            pdf.cell(200, 8, f"Porcentagem de Presença: {porcentagem_presenca:.1f}%", ln=True)
+
+        pdf.ln(5)
+        pdf.set_font("Arial", "I", 11)
+        pdf.multi_cell(0, 6, "Este relatório consolida os principais indicadores de desempenho educacional do ENEM em Altamira-PA para o ano selecionado, fornecendo uma base sólida para decisões estratégicas em educação.")
+        pdf.ln(5)
+
+        # II. Qualidade de Dados
+        pdf.set_font("Arial", "B", 16)
+        pdf.cell(200, 12, "II. Qualidade de Dados", ln=True)
+        pdf.ln(5)
+
+        pdf.set_font("Arial", "", 12)
+        pdf.multi_cell(0, 8, "Narrativa sobre o processo de ETL: Os dados foram submetidos a um rigoroso processo de limpeza e transformação, incluindo tratamento de valores faltantes, detecção de outliers e validação de consistência. Este processo garante a integridade dos dados utilizados nas análises subsequentes.")
+
+        if not df_quality.empty:
+            quality = df_quality.iloc[0]
+            pdf.cell(200, 8, f"Contagem inicial de registros: {quality['registros_iniciais']:,}", ln=True)
+            pdf.cell(200, 8, f"Porcentagem de dados faltantes (antes da imputação): {(quality['imputacao_total']/quality['registros_iniciais']*100):.1f}%", ln=True)
+            pdf.cell(200, 8, f"Porcentagem de outliers detectados: {(quality['outliers_total']/quality['registros_finais']*100):.1f}%", ln=True)
+            pdf.cell(200, 8, "Método de tratamento: Capping (limitação aos percentis inferior/superior)", ln=True)
+
+        pdf.ln(5)
+        pdf.set_font("Arial", "I", 11)
+        pdf.multi_cell(0, 6, "A qualidade dos dados é fundamental para a confiabilidade das análises. O processo ETL implementado segue boas práticas estatísticas, preservando a distribuição original dos dados enquanto trata anomalias.")
+        pdf.ln(5)
+
+        # III. Análise de Desempenho
+        pdf.set_font("Arial", "B", 16)
+        pdf.cell(200, 12, "III. Análise de Desempenho", ln=True)
+        pdf.ln(5)
+
+        # Generate Chart 1: Performance by area
+        if not df_desempenho.empty:
+            areas_data = df_desempenho[['CN_Média', 'CH_Média', 'LC_Média', 'MT_Média', 'RED_Média']].mean()
+            fig1 = px.bar(x=areas_data.index, y=areas_data.values,
+                         title="Desempenho Médio por Área do Conhecimento",
+                         labels={'x': 'Área', 'y': 'Média'})
+            pio.write_image(fig1, "temp_chart1.png", engine="kaleido")
+
+            pdf.set_font("Arial", "B", 14)
+            pdf.cell(200, 10, "Gráfico 1: Desempenho médio por área do conhecimento", ln=True)
+            pdf.image("temp_chart1.png", x=10, y=None, w=180)
+            pdf.ln(5)
+
+            # Insight Chave for Chart 1
+            pdf.set_font("Arial", "I", 11)
+            pdf.multi_cell(0, 6, "**Insight Chave:** Áreas com médias mais baixas, como Matemática, podem indicar necessidades específicas de intervenção pedagógica. A diferença entre áreas sugere oportunidades para estratégias diferenciadas de ensino em Altamira-PA.")
+            pdf.ln(5)
+
+        # Generate Chart 2: Performance by dependency
+        if not df_dependencia.empty:
+            fig2 = px.bar(df_dependencia, x='DEPENDENCIA_ADM', y='Média Geral',
+                         title="Comparação de Média por Dependência Administrativa",
+                         color='DEPENDENCIA_ADM')
+            pio.write_image(fig2, "temp_chart2.png", engine="kaleido")
+
+            pdf.set_font("Arial", "B", 14)
+            pdf.cell(200, 10, "Gráfico 2: Comparação de média por dependência administrativa", ln=True)
+            pdf.image("temp_chart2.png", x=10, y=None, w=180)
+            pdf.ln(5)
+
+            # Insight Chave for Chart 2
+            pdf.set_font("Arial", "I", 11)
+            pdf.multi_cell(0, 6, "**Insight Chave:** Diferenças significativas entre escolas públicas e privadas destacam desigualdades educacionais. Estratégias de equalização, como programas de apoio e capacitação docente, são essenciais para reduzir essas disparidades em Altamira-PA.")
+            pdf.ln(5)
 
         pdf.ln(10)
 
-        # Detailed Analysis Section
-        if df_desempenho is not None and not df_desempenho.empty:
+        # IV. Insights e Correlações
+        pdf.set_font("Arial", "B", 16)
+        pdf.cell(200, 12, "IV. Insights e Correlações", ln=True)
+        pdf.ln(5)
+
+        # Generate Chart 3: Scatter plot correlation
+        if not df_processed.empty:
+            fig3 = px.scatter(df_processed, x='NU_NOTA_MT', y='NU_NOTA_CN',
+                             title="Correlação: Matemática vs Ciências da Natureza",
+                             trendline="ols")
+            pio.write_image(fig3, "temp_chart3.png")
+
             pdf.set_font("Arial", "B", 14)
-            pdf.cell(200, 10, "Metricas de Desempenho", ln=True)
+            pdf.cell(200, 10, "Gráfico 3: Correlação entre Matemática e Ciências da Natureza", ln=True)
+            pdf.image("temp_chart3.png", x=10, y=None, w=180)
             pdf.ln(5)
 
+            # Calculate correlation
+            corr_value = df_processed['NU_NOTA_MT'].corr(df_processed['NU_NOTA_CN'])
             pdf.set_font("Arial", "", 12)
-            melhor_grupo = df_desempenho.loc[df_desempenho['Média Geral'].idxmax(), 'GRUPO_ANALISE']
-            melhor_media = df_desempenho['Média Geral'].max()
-            pior_grupo = df_desempenho.loc[df_desempenho['Média Geral'].idxmin(), 'GRUPO_ANALISE']
-            pior_media = df_desempenho['Média Geral'].min()
-            diferenca = melhor_media - pior_media
+            pdf.multi_cell(0, 8, f"Explicação: A correlação entre Matemática e Ciências da Natureza é de {corr_value:.3f}, indicando uma relação {'forte positiva' if corr_value > 0.7 else 'moderada positiva' if corr_value > 0.3 else 'fraca'}. Isso significa que alunos com bom desempenho em Matemática tendem a ter desempenho similar em Ciências da Natureza, sugerindo habilidades analíticas compartilhadas.")
 
-            pdf.cell(200, 8, f"Melhor Desempenho: {melhor_grupo} - Media Geral: {melhor_media:.2f}", ln=True)
-            pdf.cell(200, 8, f"Pior Desempenho: {pior_grupo} - Media Geral: {pior_media:.2f}", ln=True)
-            pdf.cell(200, 8, f"Diferenca Maxima: {diferenca:.2f} pontos", ln=True)
-            pdf.cell(200, 8, f"Total de Grupos Analisados: {len(df_desempenho)}", ln=True)
+            # Insight Chave for Chart 3
             pdf.ln(5)
+            pdf.set_font("Arial", "I", 11)
+            pdf.multi_cell(0, 6, "**Insight Chave:** Esta correlação positiva sugere que intervenções pedagógicas integradas entre Matemática e Ciências da Natureza podem ser mais eficazes. Alunos que dominam conceitos matemáticos frequentemente aplicam raciocínio lógico similar nas ciências, indicando oportunidades para abordagens interdisciplinares em Altamira-PA.")
 
-        # Correlation Analysis
-        if df_correlacao is not None and not df_correlacao.empty:
-            pdf.set_font("Arial", "B", 14)
-            pdf.cell(200, 10, "Analise de Correlacoes", ln=True)
-            pdf.ln(5)
+        pdf.ln(10)
 
-            pdf.set_font("Arial", "", 12)
-            pdf.cell(200, 8, "Principais correlacoes encontradas entre as areas do conhecimento:", ln=True)
-            pdf.ln(3)
+        # V. Glossário e Notas
+        pdf.set_font("Arial", "B", 16)
+        pdf.cell(200, 12, "V. Glossario e Notas", ln=True)
+        pdf.ln(5)
 
-            # Get correlation values
-            corr_data = df_correlacao.drop('ANO', axis=1) if 'ANO' in df_correlacao.columns else df_correlacao
-            corr_matrix = corr_data.values
+        pdf.set_font("Arial", "", 12)
+        glossario = """
+        NU_NOTA_CN: Nota em Ciencias da Natureza (0-1000 pontos)
+        NU_NOTA_CH: Nota em Ciencias Humanas (0-1000 pontos)
+        NU_NOTA_LC: Nota em Linguagens e Codigos (0-1000 pontos)
+        NU_NOTA_MT: Nota em Matematica (0-1000 pontos)
+        NU_NOTA_REDACAO: Nota em Redacao (0-1000 pontos)
+        TP_ESCOLA: Tipo de escola (Publica/Privada)
+        GRUPO_ANALISE: Agrupamento por localizacao (Urbano/Rural)
 
-            # Find strongest correlations
-            areas = ['CN', 'CH', 'LC', 'MT', 'RED']
-            strong_correlations = []
-            for i in range(len(areas)):
-                for j in range(i+1, len(areas)):
-                    corr_value = corr_matrix[i, j]
-                    if abs(corr_value) > 0.3:  # Only significant correlations
-                        strength = "Forte" if abs(corr_value) > 0.6 else "Moderada"
-                        direction = "Positiva" if corr_value > 0 else "Negativa"
-                        strong_correlations.append(f"{areas[i]} x {areas[j]}: {corr_value:.3f} ({strength} {direction})")
+        Metadados do projeto: Dados processados seguindo padroes estatisticos rigorosos,
+        com tratamento de outliers por metodo IQR e imputacao por mediana.
+        """
 
-            for corr in strong_correlations[:5]:  # Top 5 correlations
-                pdf.cell(200, 6, f"- {corr}", ln=True)
-
-            pdf.ln(5)
-
-        # Descriptive Statistics
-        if df_descritivas is not None and not df_descritivas.empty:
-            pdf.set_font("Arial", "B", 14)
-            pdf.cell(200, 10, "Estatisticas Descritivas", ln=True)
-            pdf.ln(5)
-
-            pdf.set_font("Arial", "", 12)
-            pdf.cell(200, 8, "Distribuicao das notas por area do conhecimento:", ln=True)
-            pdf.ln(3)
-
-            for area in df_descritivas.index:
-                mean_val = df_descritivas.loc[area, 'mean']
-                std_val = df_descritivas.loc[area, 'std']
-                min_val = df_descritivas.loc[area, 'min']
-                max_val = df_descritivas.loc[area, 'max']
-                pdf.cell(200, 6, f"{area}: Media={mean_val:.2f}, DP={std_val:.2f}, Min={min_val:.2f}, Max={max_val:.2f}", ln=True)
+        pdf.multi_cell(0, 8, glossario)
 
         # Save PDF
-        pdf.output("relatorio_enem.pdf")
+        pdf.output(f"Relatorio_ENEM_Altamira_{selected_year}.pdf")
 
-        return True
+        # Clean up temp files
+        for file in ["temp_chart1.png", "temp_chart2.png", "temp_chart3.png"]:
+            if os.path.exists(file):
+                os.remove(file)
+
+        return f"Relatorio_ENEM_Altamira_{selected_year}.pdf"
 
     except Exception as e:
         print(f"Erro ao gerar relatorio: {e}")
-        # Create a simple text file as fallback
-        with open("relatorio_enem.txt", "w", encoding="utf-8") as f:
-            f.write("ENEMAnalytics - Relatorio de Analise\n")
-            f.write(f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}\n")
-            if selected_year:
-                f.write(f"Ano de Analise: {selected_year}\n")
-            f.write("\nEste relatorio apresenta uma analise completa dos dados do ENEM para Altamira-PA.\n")
-        return False
+        return f"Erro ao gerar relatório: {str(e)}"

@@ -31,7 +31,7 @@ def create_database_from_csv(csv_path, db_path='DWStorage/enem_analysis.db', for
 
     # Extrair dados
     print("Extraindo dados...")
-    raw_data = extract_enem_data(csv_path)
+    raw_data, checksum = extract_enem_data(csv_path)
 
     # Transformar dados
     print("Transformando dados...")

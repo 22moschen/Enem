@@ -1,25 +1,33 @@
 # Virtual environments
 venv/
-venv_fresh/
-venv_new/
+.venv/
+env/
+ENV/
 
 # Python cache
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.egg-info/
+dist/
+build/
 
 # Database files
 *.db
+DWStorage/*.db
 
-# Data sources (if needed to ignore large data)
-DataSources/microdados_enem_2024/
+# Data sources (large files)
+DataSources/**/*.csv
+data/**/*.csv
 
 # Reports and generated files
 Consumption/Reports/*.pdf
+logs/**/*.pdf
 
 # Logs
 *.log
+logs/
 
 # OS files
 .DS_Store
@@ -28,7 +36,51 @@ Thumbs.db
 # IDE files
 .vscode/
 .idea/
-
-# Temporary files
-*.tmp
 *.swp
+*.swo
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Streamlit cache
+.streamlit/secrets.toml
+.streamlit/.streamlit/
+
+# Temporary and test files
+*.tmp
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Development files (documentation and scripts)
+BEFORE_AND_AFTER.md
+CODE_COMPARISON.md
+CONTRIBUTING.md
+DEPENDENCIES_FIXED.md
+DEPLOYMENT.md
+DEVELOPMENT.md
+QUICK_START*.md
+REFACTORING_COMPLETE.txt
+SOLID_REFACTORING.md
+STREAMLIT_IMPROVEMENTS.md
+STREAMLIT_REFACTORING_SUMMARY.md
+TRANSFORMATION_SUMMARY.md
+SCIPY_STATSMODELS_FIX.md
+.env.example*
+.python-version
+.pre-commit-config.yaml
+Dockerfile.dev
+Makefile
+setup.sh
+pyproject.toml.poetry
+streamlit_app_backup.py
+etl_professional.py
+automate_etl.py
+clean_duplicates.py
+inspect_db.py
+run_etl.py
+research.txt
+tests/
+.github/

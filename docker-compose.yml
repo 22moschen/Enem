@@ -1,31 +1,60 @@
 version: '3.8'
 
 services:
-  enem-analytics:
-    build: . 
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: enem-analytics-app
     ports:
       - "8501:8501"
     volumes:
-      - ./DataSources:/app/DataSources
-      - ./DWStorage:/app/DWStorage
-      - ./Consumption/Reports:/app/Consumption/Reports
+      - ./DataSources:/app/DataSources:ro
+      - ./data:/app/data
+      - ./logs:/app/logs
     environment:
+      - ENV=production
+      - LOG_LEVEL=INFO
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
       - PYTHONPATH=/app
-    command: [ "sh", "-c", "python automate_etl.py && streamlit run streamlit_app.py --server.port=8501 --server.address=0.0.0.0" ]
+    command: ["sh", "-c", "python automate_etl.py && streamlit run streamlit_app.py --server.port=8501 --server.address=0.0.0.0"]
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8501" ]
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 40s
     deploy:
       resources:
         limits:
           memory: 2G
         reservations:
           memory: 1G
-  # Serviço opcional para banco de dados persistente (SQLite já está embutido)
-  # db:
-  #   image: sqlite3:latest
-  #   volumes:
-  #     - ./DWStorage:/data
+    networks:
+      - enem-network
+    restart: unless-stopped
+
+  # Serviço opcional para desenvolvimento
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: enem-analytics-dev
+    ports:
+      - "8502:8502"
+    volumes:
+      - .:/app
+    environment:
+      - ENV=development
+      - LOG_LEVEL=DEBUG
+    networks:
+      - enem-network
+    profiles:
+      - dev
+    restart: unless-stopped
+
+networks:
+  enem-network:
+    driver: bridge
   #   command: ["sqlite3", "/data/enem_analysis.db"]
